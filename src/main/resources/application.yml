@@ -1,40 +1,40 @@
-version: '3.8'
-services:
-  tms-db:
-    image: postgres:16-alpine
-    container_name: tms-db
-    environment:
-      - POSTGRES_DB=tms_db
-      - POSTGRES_USER=tms_user
-      - POSTGRES_PASSWORD=ali08621568
-    volumes:
-      - tms_db_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      - tms-network
-
-  tms-backend:
-    build: .
-    container_name: tms-backend
-    ports:
-      - "8090:8090"
-    environment:
-      - SERVER_PORT=8090
-      - DB_HOST=tms-db
-      - DB_PORT=5432
-      - DB_NAME=tms_db
-      - DB_USER=tms_user
-      - DB_PASSWORD=ali08621568
-      - CORS_ORIGINS=https://tms.mkmr.pro
-    depends_on:
-      - tms-db
-    restart: unless-stopped
-    networks:
-      - tms-network
-
-networks:
-  tms-network:
-    driver: bridge
-
-volumes:
-  tms_db_data:
+spring:
+  application:
+    name: tms-backend
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:tms_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:ali08621568}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: true
+    show-sql: false
+  flyway:
+    enabled: false
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+tms:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBobWFjU0hBMzg0LWF0LWxlYXN0LTM4NC1iaXRzLWxvbmcx}
+    access-token-expiration-ms: 9000000
+    refresh-token-expiration-ms: 6048000000
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:8080}
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+logging:
+  level:
+    com.transport.tms: INFO
+    org.hibernate.SQL: OFF
