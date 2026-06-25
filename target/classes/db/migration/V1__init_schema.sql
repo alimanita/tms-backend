@@ -1,0 +1,349 @@
+-- -- TMS - Transport Management System schema
+--
+-- CREATE TABLE role (
+--     id    BIGSERIAL PRIMARY KEY,
+--     code  VARCHAR(50) NOT NULL UNIQUE,
+--     label VARCHAR(100) NOT NULL
+-- );
+--
+-- CREATE TABLE app_user (
+--     id            BIGSERIAL PRIMARY KEY,
+--     username      VARCHAR(80) NOT NULL UNIQUE,
+--     password VARCHAR(255) NOT NULL,
+--     full_name     VARCHAR(150) NOT NULL,
+--     email         VARCHAR(150),
+--     phone         VARCHAR(30),
+--     active        BOOLEAN NOT NULL DEFAULT TRUE,
+--     driver_id     BIGINT,
+--     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE user_role (
+--     user_id BIGINT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+--     role_id BIGINT NOT NULL REFERENCES role(id) ON DELETE CASCADE,
+--     PRIMARY KEY (user_id, role_id)
+-- );
+--
+-- CREATE TABLE refresh_token (
+--     id         BIGSERIAL PRIMARY KEY,
+--     user_id    BIGINT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+--     token_hash VARCHAR(128) NOT NULL UNIQUE,
+--     expires_at TIMESTAMPTZ NOT NULL,
+--     revoked    BOOLEAN NOT NULL DEFAULT FALSE,
+--     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE audit_log (
+--     id          BIGSERIAL PRIMARY KEY,
+--     entity_type VARCHAR(50) NOT NULL,
+--     entity_id   BIGINT NOT NULL,
+--     action      VARCHAR(50) NOT NULL,
+--     before_json JSONB,
+--     after_json  JSONB,
+--     user_id     BIGINT REFERENCES app_user(id),
+--     ip_address  VARCHAR(45),
+--     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- -- Module 1: Achats Amazon
+-- CREATE TABLE amazon_purchase (
+--     id                  BIGSERIAL PRIMARY KEY,
+--     amazon_order_number VARCHAR(80) NOT NULL UNIQUE,
+--     purchase_date       DATE NOT NULL,
+--     supplier            VARCHAR(150),
+--     amount_ht           NUMERIC(15,2) NOT NULL DEFAULT 0,
+--     vat_amount          NUMERIC(15,2) NOT NULL DEFAULT 0,
+--     amount_ttc          NUMERIC(15,2) NOT NULL DEFAULT 0,
+--     shipping_cost       NUMERIC(15,2) NOT NULL DEFAULT 0,
+--     currency            VARCHAR(3) NOT NULL DEFAULT 'EUR',
+--     status              VARCHAR(30) NOT NULL DEFAULT 'RECEIVED',
+--     notes               TEXT,
+--     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE amazon_purchase_item (
+--     id           BIGSERIAL PRIMARY KEY,
+--     purchase_id  BIGINT NOT NULL REFERENCES amazon_purchase(id) ON DELETE CASCADE,
+--     reference    VARCHAR(80),
+--     designation  VARCHAR(255) NOT NULL,
+--     quantity     NUMERIC(15,3) NOT NULL,
+--     unit_price   NUMERIC(15,4) NOT NULL,
+--     total_price  NUMERIC(15,2) NOT NULL,
+--     weight_kg    NUMERIC(10,3),
+--     volume_m3    NUMERIC(10,4)
+-- );
+--
+-- CREATE TABLE document (
+--     id           BIGSERIAL PRIMARY KEY,
+--     entity_type  VARCHAR(50) NOT NULL,
+--     entity_id    BIGINT NOT NULL,
+--     file_name    VARCHAR(255) NOT NULL,
+--     file_path    VARCHAR(500) NOT NULL,
+--     mime_type    VARCHAR(100),
+--     doc_type     VARCHAR(50),
+--     uploaded_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+--     uploaded_by  BIGINT REFERENCES app_user(id)
+-- );
+--
+-- CREATE INDEX idx_document_entity ON document(entity_type, entity_id);
+--
+-- -- Module 2: Clients & commandes
+-- CREATE TABLE customer (
+--     id              BIGSERIAL PRIMARY KEY,
+--     name            VARCHAR(255) NOT NULL,
+--     company         VARCHAR(255),
+--     phone           VARCHAR(30),
+--     email           VARCHAR(150),
+--     address         TEXT,
+--     city            VARCHAR(100),
+--     country         VARCHAR(100),
+--     nif             VARCHAR(50),
+--     tax_id          VARCHAR(50),
+--     active          BOOLEAN NOT NULL DEFAULT TRUE,
+--     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE customer_order (
+--     id           BIGSERIAL PRIMARY KEY,
+--     reference    VARCHAR(50) NOT NULL UNIQUE,
+--     order_date   DATE NOT NULL,
+--     customer_id  BIGINT NOT NULL REFERENCES customer(id),
+--     status       VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
+--     total_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+--     notes        TEXT,
+--     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE TABLE customer_order_line (
+--     id                BIGSERIAL PRIMARY KEY,
+--     customer_order_id BIGINT NOT NULL REFERENCES customer_order(id) ON DELETE CASCADE,
+--     product_ref       VARCHAR(80),
+--     designation       VARCHAR(255) NOT NULL,
+--     quantity          NUMERIC(15,3) NOT NULL,
+--     sale_price        NUMERIC(15,4) NOT NULL,
+--     total_price       NUMERIC(15,2) NOT NULL,
+--     amazon_item_id    BIGINT REFERENCES amazon_purchase_item(id)
+-- );
+--
+-- -- Module 3: Flotte
+-- CREATE TABLE vehicle (
+--     id               BIGSERIAL PRIMARY KEY,
+--     registration     VARCHAR(20) NOT NULL UNIQUE,
+--     vin              VARCHAR(50),
+--     brand            VARCHAR(80),
+--     model            VARCHAR(80),
+--     year             INT,
+--     vehicle_type     VARCHAR(50),
+--     payload_kg       NUMERIC(10,2),
+--     current_mileage  NUMERIC(12,1) NOT NULL DEFAULT 0,
+--     acquisition_date DATE,
+--     insurance_expiry DATE,
+--     registration_doc VARCHAR(255),
+--     status           VARCHAR(30) NOT NULL DEFAULT 'AVAILABLE',
+--     active           BOOLEAN NOT NULL DEFAULT TRUE,
+--     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- -- Module 4: Entretien
+-- CREATE TABLE maintenance_record (
+--     id              BIGSERIAL PRIMARY KEY,
+--     vehicle_id      BIGINT NOT NULL REFERENCES vehicle(id),
+--     maintenance_type VARCHAR(50) NOT NULL,
+--     maintenance_date DATE NOT NULL,
+--     mileage         NUMERIC(12,1),
+--     cost            NUMERIC(15,2) NOT NULL DEFAULT 0,
+--     supplier        VARCHAR(150),
+--     comment         TEXT,
+--     next_due_date   DATE,
+--     next_due_mileage NUMERIC(12,1),
+--     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE INDEX idx_maintenance_vehicle ON maintenance_record(vehicle_id, maintenance_date DESC);
+--
+-- -- Module 5: Pièces détachées
+-- CREATE TABLE spare_part (
+--     id            BIGSERIAL PRIMARY KEY,
+--     reference     VARCHAR(80) NOT NULL UNIQUE,
+--     designation   VARCHAR(255) NOT NULL,
+--     category      VARCHAR(80),
+--     supplier      VARCHAR(150),
+--     purchase_price NUMERIC(15,4),
+--     average_price  NUMERIC(15,4),
+--     stock_qty      NUMERIC(15,3) NOT NULL DEFAULT 0,
+--     min_threshold  NUMERIC(15,3) NOT NULL DEFAULT 0,
+--     active         BOOLEAN NOT NULL DEFAULT TRUE
+-- );
+--
+-- CREATE TABLE spare_part_movement (
+--     id            BIGSERIAL PRIMARY KEY,
+--     spare_part_id BIGINT NOT NULL REFERENCES spare_part(id),
+--     movement_type VARCHAR(20) NOT NULL,
+--     quantity      NUMERIC(15,3) NOT NULL,
+--     unit_cost     NUMERIC(15,4),
+--     ref_type      VARCHAR(30),
+--     ref_id        BIGINT,
+--     reason        VARCHAR(255),
+--     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+--     created_by    BIGINT REFERENCES app_user(id)
+-- );
+--
+-- -- Module 6: Chauffeurs
+-- CREATE TABLE driver (
+--     id              BIGSERIAL PRIMARY KEY,
+--     first_name      VARCHAR(80) NOT NULL,
+--     last_name       VARCHAR(80) NOT NULL,
+--     cin             VARCHAR(30) UNIQUE,
+--     phone           VARCHAR(30),
+--     address         TEXT,
+--     hire_date       DATE,
+--     salary          NUMERIC(15,2),
+--     license_number  VARCHAR(50),
+--     license_category VARCHAR(20),
+--     license_expiry  DATE,
+--     active          BOOLEAN NOT NULL DEFAULT TRUE,
+--     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- ALTER TABLE app_user ADD CONSTRAINT fk_user_driver FOREIGN KEY (driver_id) REFERENCES driver(id);
+--
+-- CREATE TABLE driver_assignment (
+--     id          BIGSERIAL PRIMARY KEY,
+--     driver_id   BIGINT NOT NULL REFERENCES driver(id),
+--     vehicle_id  BIGINT NOT NULL REFERENCES vehicle(id),
+--     start_date  DATE NOT NULL,
+--     end_date    DATE,
+--     notes       TEXT
+-- );
+--
+-- -- Module 7: Carburant
+-- CREATE TABLE fuel_record (
+--     id           BIGSERIAL PRIMARY KEY,
+--     vehicle_id   BIGINT NOT NULL REFERENCES vehicle(id),
+--     driver_id    BIGINT REFERENCES driver(id),
+--     fill_date    TIMESTAMPTZ NOT NULL,
+--     mileage      NUMERIC(12,1) NOT NULL,
+--     station      VARCHAR(150),
+--     liters       NUMERIC(10,3) NOT NULL,
+--     price_per_liter NUMERIC(10,4) NOT NULL,
+--     total_amount NUMERIC(15,2) NOT NULL,
+--     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE INDEX idx_fuel_vehicle ON fuel_record(vehicle_id, fill_date DESC);
+--
+-- -- Module 8: Missions
+-- CREATE TABLE transport_mission (
+--     id                  BIGSERIAL PRIMARY KEY,
+--     reference           VARCHAR(50) NOT NULL UNIQUE,
+--     customer_order_id   BIGINT REFERENCES customer_order(id),
+--     customer_id         BIGINT REFERENCES customer(id),
+--     vehicle_id          BIGINT REFERENCES vehicle(id),
+--     driver_id           BIGINT REFERENCES driver(id),
+--     departure_date      TIMESTAMPTZ,
+--     expected_arrival    TIMESTAMPTZ,
+--     actual_arrival      TIMESTAMPTZ,
+--     loading_address     TEXT,
+--     delivery_address    TEXT,
+--     status              VARCHAR(30) NOT NULL DEFAULT 'PLANNED',
+--     revenue             NUMERIC(15,2) NOT NULL DEFAULT 0,
+--     transport_cost      NUMERIC(15,2) NOT NULL DEFAULT 0,
+--     notes               TEXT,
+--     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE INDEX idx_mission_status ON transport_mission(status);
+-- CREATE INDEX idx_mission_dates ON transport_mission(departure_date);
+--
+-- -- Module 9: Comptabilité
+-- CREATE TABLE financial_entry (
+--     id           BIGSERIAL PRIMARY KEY,
+--     entry_date   DATE NOT NULL,
+--     entry_type   VARCHAR(20) NOT NULL,
+--     category     VARCHAR(50) NOT NULL,
+--     amount       NUMERIC(15,2) NOT NULL,
+--     currency     VARCHAR(3) NOT NULL DEFAULT 'EUR',
+--     ref_type     VARCHAR(30),
+--     ref_id       BIGINT,
+--     description  TEXT,
+--     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- CREATE INDEX idx_financial_date ON financial_entry(entry_date DESC);
+--
+-- -- Module 11: Notifications
+-- CREATE TABLE notification (
+--     id           BIGSERIAL PRIMARY KEY,
+--     type         VARCHAR(50) NOT NULL,
+--     severity     VARCHAR(20) NOT NULL DEFAULT 'INFO',
+--     title        VARCHAR(255) NOT NULL,
+--     message      TEXT,
+--     entity_type  VARCHAR(50),
+--     entity_id    BIGINT,
+--     read_flag    BOOLEAN NOT NULL DEFAULT FALSE,
+--     channel      VARCHAR(20) NOT NULL DEFAULT 'IN_APP',
+--     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+-- );
+--
+-- -- Seed roles
+-- INSERT INTO role (code, label) VALUES
+--     ('SUPER_ADMIN', 'Super Administrateur'),
+--     ('MANAGER', 'Gestionnaire'),
+--     ('ACCOUNTANT', 'Comptable'),
+--     ('DRIVER', 'Chauffeur');
+--
+-- -- Seed admin user (password set at startup via DevDataInitializer)
+-- INSERT INTO app_user (username, password, full_name, email) VALUES
+--     ('admin', '$2a$10$placeholder', 'Administrateur TMS', 'admin@tms.local');
+--
+-- INSERT INTO user_role (user_id, role_id)
+-- SELECT u.id, r.id FROM app_user u, role r WHERE u.username = 'admin' AND r.code = 'SUPER_ADMIN';
+--
+-- INSERT INTO user_role (user_id, role_id)
+-- SELECT u.id, r.id FROM app_user u, role r WHERE u.username = 'admin' AND r.code = 'MANAGER';
+--
+-- -- Demo data
+-- INSERT INTO customer (name, company, phone, email, city, country) VALUES
+--     ('Client Demo', 'SARL Transport Client', '+216 20 000 000', 'client@demo.tn', 'Tunis', 'Tunisie');
+--
+-- INSERT INTO vehicle (registration, brand, model, year, vehicle_type, payload_kg, current_mileage, status) VALUES
+--     ('123 TU 4567', 'Mercedes', 'Sprinter', 2022, 'VAN', 1500, 45000, 'AVAILABLE'),
+--     ('789 TU 1234', 'Iveco', 'Daily', 2020, 'TRUCK', 3500, 82000, 'AVAILABLE');
+--
+-- INSERT INTO driver (first_name, last_name, cin, phone, license_number, license_category, license_expiry, salary) VALUES
+--     ('Ali', 'Ben Salah', '12345678', '+216 22 111 222', 'PER-001', 'C', '2027-06-30', 1800.00),
+--     ('Mohamed', 'Trabelsi', '87654321', '+216 23 333 444', 'PER-002', 'C', '2026-03-15', 1750.00);
+--
+-- INSERT INTO spare_part (reference, designation, category, stock_qty, min_threshold, purchase_price) VALUES
+--     ('FILT-OIL-001', 'Filtre à huile', 'FILTRES', 12, 5, 25.00),
+--     ('PNEU-205', 'Pneu 205/65 R16', 'PNEUS', 4, 2, 120.00);
+--
+-- INSERT INTO amazon_purchase (amazon_order_number, purchase_date, supplier, amount_ht, vat_amount, amount_ttc, shipping_cost, status) VALUES
+--     ('AMZ-2026-001', CURRENT_DATE - 5, 'Amazon FR', 450.00, 90.00, 540.00, 15.00, 'RECEIVED');
+--
+-- INSERT INTO amazon_purchase_item (purchase_id, reference, designation, quantity, unit_price, total_price, weight_kg) VALUES
+--     (1, 'B08XYZ123', 'Produit Amazon Demo', 10, 45.00, 450.00, 12.5);
+--
+-- INSERT INTO customer_order (reference, order_date, customer_id, status, total_amount) VALUES
+--     ('CMD-2026-001', CURRENT_DATE, 1, 'CONFIRMED', 750.00);
+--
+-- INSERT INTO customer_order_line (customer_order_id, product_ref, designation, quantity, sale_price, total_price) VALUES
+--     (1, 'B08XYZ123', 'Produit Amazon Demo', 10, 75.00, 750.00);
+--
+-- INSERT INTO transport_mission (reference, customer_order_id, customer_id, vehicle_id, driver_id, departure_date, expected_arrival, loading_address, delivery_address, status, revenue) VALUES
+--     ('MIS-2026-001', 1, 1, 1, 1, now() + interval '1 day', now() + interval '2 days', 'Entrepôt Tunis', 'Client Demo - Tunis', 'PLANNED', 750.00);
+--
+-- INSERT INTO fuel_record (vehicle_id, driver_id, fill_date, mileage, station, liters, price_per_liter, total_amount) VALUES
+--     (1, 1, now() - interval '3 days', 44800, 'Total Tunis', 55.0, 1.85, 101.75);
+--
+-- INSERT INTO maintenance_record (vehicle_id, maintenance_type, maintenance_date, mileage, cost, supplier, next_due_date, next_due_mileage) VALUES
+--     (1, 'OIL_CHANGE', CURRENT_DATE - 30, 44000, 180.00, 'Garage Auto', CURRENT_DATE + 60, 49000);
+--
+-- INSERT INTO financial_entry (entry_date, entry_type, category, amount, ref_type, ref_id, description) VALUES
+--     (CURRENT_DATE, 'EXPENSE', 'FUEL', 101.75, 'FUEL_RECORD', 1, 'Plein véhicule 123 TU 4567'),
+--     (CURRENT_DATE, 'EXPENSE', 'MAINTENANCE', 180.00, 'MAINTENANCE', 1, 'Vidange'),
+--     (CURRENT_DATE, 'REVENUE', 'SALE', 750.00, 'CUSTOMER_ORDER', 1, 'Commande CMD-2026-001');
+--
+-- INSERT INTO notification (type, severity, title, message, entity_type, entity_id) VALUES
+--     ('LICENSE_EXPIRY', 'WARNING', 'Permis expirant', 'Permis de Mohamed Trabelsi expire le 2026-03-15', 'DRIVER', 2),
+--     ('LOW_STOCK', 'WARNING', 'Stock faible', 'Pneu 205/65 R16 sous le seuil minimum', 'SPARE_PART', 2);
