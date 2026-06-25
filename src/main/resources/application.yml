@@ -4,9 +4,9 @@ services:
     image: postgres:16-alpine
     container_name: tms-db
     environment:
-      - POSTGRES_DB=tms
+      - POSTGRES_DB=tms_db
       - POSTGRES_USER=tms_user
-      - POSTGRES_PASSWORD=CHANGEZ_MOI
+      - POSTGRES_PASSWORD=ali08621568
     volumes:
       - tms_db_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -19,11 +19,13 @@ services:
     ports:
       - "8090:8090"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8090
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://tms-db:5432/tms
-      - SPRING_DATASOURCE_USERNAME=tms_user
-      - SPRING_DATASOURCE_PASSWORD=ali08621568
+      - DB_HOST=tms-db
+      - DB_PORT=5432
+      - DB_NAME=tms_db
+      - DB_USER=tms_user
+      - DB_PASSWORD=ali08621568
+      - CORS_ORIGINS=https://tms.mkmr.pro
     depends_on:
       - tms-db
     restart: unless-stopped

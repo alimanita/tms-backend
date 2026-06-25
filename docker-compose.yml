@@ -1,0 +1,34 @@
+version: '3.8'
+services:
+  tms-db:
+    image: postgres:16-alpine
+    container_name: tms-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - tms_postgres_data:/var/lib/postgresql/data
+    networks:
+      - tms-network
+
+  tms-backend:
+    build: .
+    container_name: tms-backend
+    restart: always
+    depends_on:
+      - tms-db
+    ports:
+      - "8090:8090"
+    env_file:
+      - .env
+    networks:
+      - tms-network
+
+volumes:
+  tms_postgres_data:
+
+networks:
+  tms-network:
+    driver: bridge
