@@ -70,6 +70,9 @@ public class AuthService {
         );
     }
 
+    @Value("classpath:menu.json")
+    private org.springframework.core.io.Resource menuResource;
+
     public AuthResponse.UserResponse me(UserPrincipal principal) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         return new AuthResponse.UserResponse(
@@ -78,6 +81,103 @@ public class AuthService {
                 user.getFullName(),
                 user.getRoles().stream().map(r -> r.getCode()).toList()
         );
+    }
+
+    public java.util.Map<String, Object> getUserMenu(UserPrincipal principal) {
+        try {
+            User user = userRepository.findById(principal.getId()).orElse(null);
+            java.util.Set<String> userRoles = new java.util.HashSet<>();
+            if (user != null && user.getRoles() != null) {
+                user.getRoles().forEach(r -> {
+                    String code = r.getCode();
+                    if (code != null) {
+                        if (code.startsWith("ROLE_")) {
+                            code = code.substring(5);
+                        }
+                        userRoles.add(code);
+                    }
+                });
+            }
+
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            java.util.Map<String, Object> fullMenu = mapper.readValue(
+                    menuResource.getInputStream(),
+                    new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}
+            );
+
+            java.util.List<java.util.Map<String, Object>> menuItems = (java.util.List<java.util.Map<String, Object>>) fullMenu.get("menu");
+            java.util.List<java.util.Map<String, Object>> filteredMenu = filterMenuByRoles(menuItems, userRoles);
+
+            return java.util.Map.of("menu", filteredMenu);
+        } catch (Exception e) {
+            return java.util.Map.of("menu", java.util.List.of());
+        }
+    }
+
+    private java.util.List<java.util.Map<String, Object>> filterMenuByRoles(
+            java.util.List<java.util.Map<String, Object>> menuItems,
+            java.util.Set<String> userRoles) {
+
+        if (menuItems == null) {
+            return java.util.Collections.emptyList();
+        }
+
+        java.util.List<java.util.Map<String, Object>> filtered = new java.util.ArrayList<>();
+
+        for (java.util.Map<String, Object> item : menuItems) {
+            if (hasPermission(item, userRoles)) {
+                java.util.Map<String, Object> filteredItem = new java.util.HashMap<>(item);
+                if (item.containsKey("children") && item.get("children") != null) {
+                    java.util.List<java.util.Map<String, Object>> children =
+                            (java.util.List<java.util.Map<String, Object>>) item.get("children");
+                    java.util.List<java.util.Map<String, Object>> filteredChildren =
+                            filterMenuByRoles(children, userRoles);
+
+                    if ("sub".equals(item.get("type"))) {
+                        if (!filteredChildren.isEmpty()) {
+                            filteredItem.put("children", filteredChildren);
+                            filtered.add(filteredItem);
+                        }
+                    } else {
+                        filteredItem.put("children", filteredChildren);
+                        filtered.add(filteredItem);
+                    }
+                } else {
+                    filtered.add(filteredItem);
+                }
+            }
+        }
+        return filtered;
+    }
+
+    private boolean hasPermission(java.util.Map<String, Object> menuItem, java.util.Set<String> userRoles) {
+        if (!menuItem.containsKey("permissions") || menuItem.get("permissions") == null) {
+            return true;
+        }
+
+        java.util.Map<String, Object> permissions = (java.util.Map<String, Object>) menuItem.get("permissions");
+
+        if (permissions.containsKey("only")) {
+            Object only = permissions.get("only");
+            java.util.List<String> requiredRoles = only instanceof java.util.List
+                    ? (java.util.List<String>) only
+                    : java.util.Collections.singletonList((String) only);
+
+            boolean hasRequiredRole = requiredRoles.stream().anyMatch(userRoles::contains);
+            if (!hasRequiredRole) return false;
+        }
+
+        if (permissions.containsKey("except")) {
+            Object except = permissions.get("except");
+            java.util.List<String> forbiddenRoles = except instanceof java.util.List
+                    ? (java.util.List<String>) except
+                    : java.util.Collections.singletonList((String) except);
+
+            boolean hasForbiddenRole = forbiddenRoles.stream().anyMatch(userRoles::contains);
+            if (hasForbiddenRole) return false;
+        }
+
+        return true;
     }
 
     private String hashToken(String token) {
@@ -90,3 +190,4 @@ public class AuthService {
         }
     }
 }
+

@@ -29,4 +29,10 @@ public class AuthController {
     public AuthResponse.UserResponse me(@AuthenticationPrincipal UserPrincipal principal) {
         return authService.me(principal);
     }
+
+    @GetMapping("/menu")
+    public java.util.Map<String, Object> getUserMenu(@AuthenticationPrincipal UserPrincipal principal) {
+        return authService.getUserMenu(principal);
+    }
 }
+

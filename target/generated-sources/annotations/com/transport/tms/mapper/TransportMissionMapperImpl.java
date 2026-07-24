@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-06-25T09:51:18+0100",
+    date = "2026-07-24T10:28:44+0100",
     comments = "version: 1.6.3, compiler: javac, environment: Java 21.0.9 (Oracle Corporation)"
 )
 @Component
@@ -44,6 +44,7 @@ public class TransportMissionMapperImpl implements TransportMissionMapper {
         BigDecimal revenue = null;
         BigDecimal transportCost = null;
         String notes = null;
+        String cancellationReason = null;
 
         customerOrderId = entityCustomerOrderId( entity );
         customerOrderReference = entityCustomerOrderReference( entity );
@@ -63,10 +64,12 @@ public class TransportMissionMapperImpl implements TransportMissionMapper {
         revenue = entity.getRevenue();
         transportCost = entity.getTransportCost();
         notes = entity.getNotes();
+        cancellationReason = entity.getCancellationReason();
 
         String driverName = entity.getDriver() != null ? entity.getDriver().getFullName() : null;
+        BigDecimal totalExpenses = java.math.BigDecimal.ZERO;
 
-        TransportMissionResponse transportMissionResponse = new TransportMissionResponse( id, reference, customerOrderId, customerOrderReference, customerId, customerName, vehicleId, vehicleRegistration, driverId, driverName, departureDate, expectedArrival, actualArrival, loadingAddress, deliveryAddress, status, revenue, transportCost, notes );
+        TransportMissionResponse transportMissionResponse = new TransportMissionResponse( id, reference, customerOrderId, customerOrderReference, customerId, customerName, vehicleId, vehicleRegistration, driverId, driverName, departureDate, expectedArrival, actualArrival, loadingAddress, deliveryAddress, status, revenue, transportCost, totalExpenses, notes, cancellationReason );
 
         return transportMissionResponse;
     }

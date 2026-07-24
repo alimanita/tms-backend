@@ -24,6 +24,7 @@ public class TransportMission {
     private BigDecimal revenue;
     @Column(name = "transport_cost") private BigDecimal transportCost;
     private String notes;
+    @Column(name = "cancellation_reason") private String cancellationReason;
     @Builder.Default
     @Column(name = "created_at", updatable = false)
     private Instant createdAt = Instant.now();

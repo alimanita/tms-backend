@@ -22,7 +22,7 @@ public interface TransportMissionRepository extends JpaRepository<TransportMissi
     Optional<TransportMission> findWithDetailsById(Long id);
 
     boolean existsByReference(String reference);
-
+    long countByReferenceStartingWith(String prefix);
     boolean existsByReferenceAndIdNot(String reference, Long id);
 
     @org.springframework.data.jpa.repository.Query("SELECT DISTINCT m.vehicle.id FROM TransportMission m WHERE m.driver.id = :driverId AND m.vehicle IS NOT NULL")

@@ -14,5 +14,6 @@ public interface TransportMissionMapper {
     @Mapping(target = "vehicleRegistration", source = "vehicle.registration")
     @Mapping(target = "driverId", source = "driver.id")
     @Mapping(target = "driverName", expression = "java(entity.getDriver() != null ? entity.getDriver().getFullName() : null)")
+    @Mapping(target = "totalExpenses", expression = "java(java.math.BigDecimal.ZERO)")
     TransportMissionResponse toResponse(TransportMission entity);
 }

@@ -9,4 +9,8 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     Page<Driver> findByActiveTrue(Pageable pageable);
 
     long countByActiveTrue();
+
+    java.util.List<Driver> findByStatutAndActiveTrue(String statut);
+
+    java.util.Optional<Driver> findByIdAndActiveTrue(Long id);
 }

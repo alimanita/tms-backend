@@ -1,6 +1,7 @@
 package com.transport.tms.service;
 
 import com.transport.tms.domain.entity.*;
+import com.transport.tms.domain.enums.MissionStatus;
 import com.transport.tms.dto.request.TransportMissionRequest;
 import com.transport.tms.dto.response.PageResponse;
 import com.transport.tms.dto.response.TransportMissionResponse;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +28,7 @@ public class TransportMissionService {
     private final VehicleRepository vehicleRepository;
     private final DriverRepository driverRepository;
     private final TransportMissionMapper transportMissionMapper;
+    private final MissionExpenseService missionExpenseService;
 
     @Transactional(readOnly = true)
     public PageResponse<TransportMissionResponse> list(int page, int size) {
@@ -50,16 +53,29 @@ public class TransportMissionService {
 
     @Transactional(readOnly = true)
     public TransportMissionResponse getById(Long id) {
-        return transportMissionMapper.toResponse(findWithDetails(id));
+        return toEnrichedResponse(findWithDetails(id));
     }
 
     @Transactional
     public TransportMissionResponse create(TransportMissionRequest request) {
-        if (transportMissionRepository.existsByReference(request.reference())) {
+        String reference = (request.reference() == null || request.reference().isBlank())
+                ? generateReference()
+                : request.reference();
+
+        if (transportMissionRepository.existsByReference(reference)) {
             throw new BusinessException("DUPLICATE_REFERENCE", "Reference mission deja existante");
         }
+
         TransportMission mission = applyRequest(new TransportMission(), request);
-        return transportMissionMapper.toResponse(transportMissionRepository.save(mission));
+        mission.setReference(reference);
+        return toEnrichedResponse(transportMissionRepository.save(mission));
+    }
+
+    private String generateReference() {
+        int year = java.time.Year.now().getValue();
+        String prefix = "MIS-" + year + "-";
+        long count = transportMissionRepository.countByReferenceStartingWith(prefix);
+        return prefix + String.format("%04d", count + 1);
     }
 
     @Transactional
@@ -69,7 +85,7 @@ public class TransportMissionService {
         }
         TransportMission mission = findWithDetails(id);
         applyRequest(mission, request);
-        return transportMissionMapper.toResponse(transportMissionRepository.save(mission));
+        return toEnrichedResponse(transportMissionRepository.save(mission));
     }
 
     @Transactional
@@ -77,8 +93,55 @@ public class TransportMissionService {
         transportMissionRepository.delete(findWithDetails(id));
     }
 
+    @Transactional
+    public TransportMissionResponse start(Long id) {
+        TransportMission mission = findWithDetails(id);
+        if (mission.getStatus() != MissionStatus.PLANNED && mission.getStatus() != MissionStatus.ASSIGNED) {
+            throw new BusinessException("INVALID_STATUS", "La mission doit etre planifiee ou affectee pour demarrer");
+        }
+        mission.setStatus(MissionStatus.IN_PROGRESS);
+        if (mission.getDepartureDate() == null) {
+            mission.setDepartureDate(Instant.now());
+        }
+        return toEnrichedResponse(transportMissionRepository.save(mission));
+    }
+
+    @Transactional
+    public TransportMissionResponse complete(Long id) {
+        TransportMission mission = findWithDetails(id);
+        if (mission.getStatus() != MissionStatus.IN_PROGRESS) {
+            throw new BusinessException("INVALID_STATUS", "La mission doit etre en cours pour etre cloturee");
+        }
+        mission.setStatus(MissionStatus.DELIVERED);
+        mission.setActualArrival(Instant.now());
+        return toEnrichedResponse(transportMissionRepository.save(mission));
+    }
+
+    @Transactional
+    public TransportMissionResponse cancel(Long id, String reason) {
+        TransportMission mission = findWithDetails(id);
+        if (mission.getStatus() == MissionStatus.DELIVERED || mission.getStatus() == MissionStatus.CANCELLED) {
+            throw new BusinessException("INVALID_STATUS", "Cette mission ne peut plus etre annulee");
+        }
+        mission.setStatus(MissionStatus.CANCELLED);
+        mission.setCancellationReason(reason);
+        return toEnrichedResponse(transportMissionRepository.save(mission));
+    }
+
+    private TransportMissionResponse toEnrichedResponse(TransportMission mission) {
+        TransportMissionResponse base = transportMissionMapper.toResponse(mission);
+        return new TransportMissionResponse(
+                base.id(), base.reference(), base.customerOrderId(), base.customerOrderReference(),
+                base.customerId(), base.customerName(), base.vehicleId(), base.vehicleRegistration(),
+                base.driverId(), base.driverName(), base.departureDate(), base.expectedArrival(),
+                base.actualArrival(), base.loadingAddress(), base.deliveryAddress(), base.status(),
+                base.revenue(), base.transportCost(), missionExpenseService.totalByMission(mission.getId()),
+                base.notes(), mission.getCancellationReason()
+        );
+    }
+
     private TransportMission applyRequest(TransportMission mission, TransportMissionRequest request) {
-        mission.setReference(request.reference());
+//mission.setReference(request.reference());
         mission.setCustomerOrder(resolveOrder(request.customerOrderId()));
         mission.setCustomer(resolveCustomer(request.customerId()));
         mission.setVehicle(resolveVehicle(request.vehicleId()));

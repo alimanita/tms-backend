@@ -1,13 +1,12 @@
+/*
 package com.transport.tms.service;
 
-import com.transport.tms.domain.entity.SparePart;
 import com.transport.tms.dto.request.SparePartRequest;
 import com.transport.tms.dto.response.PageResponse;
 import com.transport.tms.dto.response.SparePartResponse;
 import com.transport.tms.exception.BusinessException;
 import com.transport.tms.exception.ResourceNotFoundException;
 import com.transport.tms.mapper.SparePartMapper;
-import com.transport.tms.repository.SparePartRepository;
 import com.transport.tms.util.PageMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -66,3 +65,4 @@ public class SparePartService {
                 .orElseThrow(() -> new ResourceNotFoundException("SparePart", id));
     }
 }
+*/

@@ -57,6 +57,8 @@ public class SecurityConfig {
                         .hasAnyRole("SUPER_ADMIN", "MANAGER", "ACCOUNTANT")
                         .requestMatchers("/api/v1/missions/my/**", "/api/v1/fuel-records/my/**")
                         .hasAnyRole("DRIVER", "SUPER_ADMIN", "MANAGER")
+                        .requestMatchers("/api/v1/fleet/chauffeurs/me")
+                        .hasAnyRole("DRIVER", "SUPER_ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/**")
                         .hasAnyRole("SUPER_ADMIN", "MANAGER", "ACCOUNTANT")
                         .anyRequest().authenticated()

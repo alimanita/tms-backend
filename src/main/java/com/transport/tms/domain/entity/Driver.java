@@ -20,6 +20,9 @@ public class Driver {
     @Column(name = "license_number") private String licenseNumber;
     @Column(name = "license_category") private String licenseCategory;
     @Column(name = "license_expiry") private LocalDate licenseExpiry;
+    private String email;
+    @Builder.Default
+    private String statut = "DISPONIBLE";
 
     @Builder.Default
     private boolean active = true;

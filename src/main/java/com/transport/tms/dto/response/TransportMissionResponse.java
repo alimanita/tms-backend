@@ -24,5 +24,7 @@ public record TransportMissionResponse(
         MissionStatus status,
         BigDecimal revenue,
         BigDecimal transportCost,
-        String notes
+        BigDecimal totalExpenses,
+        String notes,
+        String cancellationReason
 ) {}
