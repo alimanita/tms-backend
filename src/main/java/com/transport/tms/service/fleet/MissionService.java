@@ -1,0 +1,31 @@
+package com.transport.tms.service.fleet;
+
+import com.transport.tms.dto.fleet.request.DepenseMissionRequest;
+import com.transport.tms.dto.fleet.request.MissionRequest;
+import com.transport.tms.dto.fleet.response.DepenseMissionResponse;
+import com.transport.tms.dto.fleet.response.MissionResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+
+public interface MissionService {
+    MissionResponse create(MissionRequest request);
+    MissionResponse update(Long id, MissionRequest request);
+    MissionResponse findById(Long id);
+    Page<MissionResponse> findAll(Pageable pageable);
+    List<MissionResponse> findByVehicule(Long vehiculeId);
+    List<MissionResponse> findByChauffeur(Long chauffeurId);
+    List<MissionResponse> findEnCours();
+    List<MissionResponse> findEnAttenteApprobation();
+   // MissionResponse soumettre(Long id);
+    //MissionResponse approuver(Long id);
+    //MissionResponse rejeter(Long id, String motif);
+    MissionResponse demarrer(Long id);
+    MissionResponse cloturer(Long id);
+    MissionResponse annuler(Long id, String motif);
+    DepenseMissionResponse addDepense(Long id, DepenseMissionRequest request, org.springframework.web.multipart.MultipartFile receipt);
+    List<DepenseMissionResponse> findDepenses(Long id);
+    void removeDepense(Long id, Long depenseId);
+    List<MissionResponse> findMesMissions();
+}

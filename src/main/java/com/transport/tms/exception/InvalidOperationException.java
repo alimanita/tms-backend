@@ -1,6 +1,6 @@
 package com.transport.tms.exception;
 
-import ch.qos.logback.core.spi.ErrorCodes;
+
 import lombok.Getter;
 
 public class InvalidOperationException extends RuntimeException {

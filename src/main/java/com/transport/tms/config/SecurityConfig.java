@@ -48,17 +48,36 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
+                                "/api/v1/entreprises/register",
+                                "/api/v1/statistics/role-dashboard",
                                 "/api-docs/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
-                        .requestMatchers("/api/v1/users/**", "/api/v1/roles/**")
-                        .hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/v1/utilisateurs/**", "/api/v1/roles/**")
+                        .hasAnyRole("SUPER_ADMIN", "ADMIN")
                         .requestMatchers("/api/v1/financial-entries/**", "/api/v1/finance/**")
                         .hasAnyRole("SUPER_ADMIN", "MANAGER", "ACCOUNTANT")
                         .requestMatchers("/api/v1/missions/my/**", "/api/v1/fuel-records/my/**")
                         .hasAnyRole("DRIVER", "SUPER_ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/fleet/chauffeurs/me")
                         .hasAnyRole("DRIVER", "SUPER_ADMIN", "MANAGER")
+                        .requestMatchers("/api/v1/dashboard")
+                        .hasAnyRole("SUPER_ADMIN", "MANAGER", "ACCOUNTANT", "CHAUFFEUR")
+                        .requestMatchers("/api/v1/fleet/missions/**")
+                        .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR")
+                        .requestMatchers("/api/v1/fleet/vehicules/**")
+                        .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR")
+                        .requestMatchers("/api/v1/fleet/pleins-carburant/**")
+                        .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR")
+                        .requestMatchers(
+                                "/api/v1/fleet/documents/**",
+                                "/api/v1/fleet/machines/**",
+                                "/api/v1/fleet/chauffeurs/**",
+                                "/api/v1/fleet/changements-huile/**",
+                                "/api/v1/fleet/notifications/**",
+                                "/api/v1/fleet/pneus/**"
+                        )
+                        .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR")
                         .requestMatchers("/api/v1/**")
                         .hasAnyRole("SUPER_ADMIN", "MANAGER", "ACCOUNTANT")
                         .anyRequest().authenticated()

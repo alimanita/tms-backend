@@ -1,10 +1,13 @@
 package com.transport.tms.service;
 
 import com.transport.tms.domain.entity.Notification;
+import com.transport.tms.domain.entity.fleet.Mission;
 import com.transport.tms.domain.enums.MissionStatus;
 import com.transport.tms.domain.enums.VehicleStatus;
 import com.transport.tms.dto.response.DashboardResponse;
 import com.transport.tms.repository.*;
+import com.transport.tms.repository.fleet.MissionRepository;
+import com.transport.tms.repository.fleet.VehiculeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -26,9 +29,9 @@ public class DashboardService {
     private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
 
     private final FinancialEntryRepository financialEntryRepository;
-    private final TransportMissionRepository transportMissionRepository;
+    private final MissionRepository transportMissionRepository;
     private final CustomerOrderRepository customerOrderRepository;
-    private final VehicleRepository vehicleRepository;
+    private final VehiculeRepository vehicleRepository;
     private final NotificationRepository notificationRepository;
 
     @Transactional(readOnly = true)
@@ -41,10 +44,9 @@ public class DashboardService {
                 revenue,
                 expenses,
                 netProfit,
-                transportMissionRepository.countByStatusNot(MissionStatus.CANCELLED),
+                transportMissionRepository.count(),
                 customerOrderRepository.count(),
-                vehicleRepository.countByActiveTrueAndStatus(VehicleStatus.AVAILABLE)
-                        + vehicleRepository.countByActiveTrueAndStatus(VehicleStatus.ON_MISSION),
+                vehicleRepository.countByActifTrue(),
                 notificationRepository.countByReadFlagFalse()
         );
 

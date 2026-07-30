@@ -23,16 +23,8 @@
           "name": "Véhicules",
           "type": "link",
           "icon": "directions_car"
-        },
-        {
-          "route": "/fleet/machines",
-          "name": "Engins & Machines",
-          "type": "link",
-          "icon": "precision_manufacturing",
-          "permissions": {
-            "except": ["CHAUFFEUR"]
-          }
-        },
+        }
+        ,
         {
           "route": "/fleet/chauffeurs",
           "name": "Chauffeurs",
@@ -72,18 +64,8 @@
           "type": "link",
           "icon": "extension"
         },
-        {
-          "route": "/fleet/pneus",
-          "name": "Pneus",
-          "type": "link",
-          "icon": "tire_repair"
-        },
-        {
-          "route": "/fleet/affectation-pneus",
-          "name": "Affectation Pneus",
-          "type": "link",
-          "icon": "swap_horiz"
-        },
+
+
         {
           "route": "/fleet/changement-huile",
           "name": "Changement Huile",
@@ -139,7 +121,7 @@
       "type": "sub",
       "icon": "settings",
       "permissions": {
-        "only": ["ADMIN", "SUPERADMIN"]
+        "only": ["ADMIN", "SUPERADMIN","SUPER_ADMIN" ]
       },
       "children": [
         {

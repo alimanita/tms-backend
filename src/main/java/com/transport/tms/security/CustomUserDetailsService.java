@@ -1,13 +1,14 @@
 package com.transport.tms.security;
 
-import com.transport.tms.domain.entity.User;
-import com.transport.tms.repository.UserRepository;
+import com.transport.tms.domain.entity.Utilisateur;
+import com.transport.tms.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.stream.Collectors;
 
@@ -15,25 +16,32 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepository;
+    private final UtilisateurRepository utilisateurRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String username) {
-        User user = userRepository.findByUsernameAndActiveTrue(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
-
-        var authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getCode()))
-                .collect(Collectors.toSet());
+    @Transactional(readOnly = true)
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        // Chercher d'abord par email, puis par username
+        Utilisateur utilisateur = utilisateurRepository.findByEmail(identifier)
+                .or(() -> utilisateurRepository.findByUsername(identifier))
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "Utilisateur non trouvé avec l'identifiant : " + identifier));
 
         return new UserPrincipal(
-                user.getId(),
-                user.getUsername(),
-                user.getPassword(),
-                user.getFullName(),
-                user.isActive(),
-                user.getDriverId(),
-                authorities
+                utilisateur.getId(),
+                utilisateur.getUsername(),
+                utilisateur.getPassword(),
+                utilisateur.getFullName(),
+                utilisateur.isActive(),
+                utilisateur.getDriverId(),
+                utilisateur.getRoles().stream()
+                        .map(role -> new SimpleGrantedAuthority(
+                                role.getRoleName().startsWith("ROLE_")
+                                        ? role.getRoleName()
+                                        : "ROLE_" + role.getRoleName()
+                        ))
+                        .collect(Collectors.toList())
         );
     }
 }
+

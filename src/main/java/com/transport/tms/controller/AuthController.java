@@ -1,38 +1,52 @@
 package com.transport.tms.controller;
 
-import com.transport.tms.dto.request.LoginRequest;
-import com.transport.tms.dto.response.AuthResponse;
-import com.transport.tms.security.UserPrincipal;
-import com.transport.tms.service.AuthService;
+import com.transport.tms.dto.*;
+
+import com.transport.tms.service.AuthenticationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+    private final AuthenticationService authenticationService;
+
+    @PostMapping("/register")
+    public ResponseEntity<AuthenticationResponse> registerUser(@RequestBody @Valid RegisterDto registerDto) {
+        return ResponseEntity.ok(authenticationService.registerUser(registerDto));
+    }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public ResponseEntity<AuthenticationResponse> login(@RequestBody @Valid AuthenticationRequest request) {
+        return ResponseEntity.ok(authenticationService.authenticate(request));
     }
 
     @GetMapping("/me")
-    public AuthResponse.UserResponse me(@AuthenticationPrincipal UserPrincipal principal) {
-        return authService.me(principal);
+    public ResponseEntity<UtilisateurDto> me() {
+        return ResponseEntity.ok(authenticationService.getCurrentUser());
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthenticationResponse> refresh(@RequestBody Map<String, String> request) {
+        String refreshToken = request.get("refreshToken");
+        return ResponseEntity.ok(authenticationService.refreshToken(refreshToken));
     }
 
     @GetMapping("/menu")
-    public java.util.Map<String, Object> getUserMenu(@AuthenticationPrincipal UserPrincipal principal) {
-        return authService.getUserMenu(principal);
+    public ResponseEntity<Map<String, Object>> getUserMenu() {
+        return ResponseEntity.ok(authenticationService.getUserMenu());
     }
 }
-

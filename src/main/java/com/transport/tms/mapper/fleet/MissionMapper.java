@@ -1,0 +1,118 @@
+package com.transport.tms.mapper.fleet;
+
+
+import com.transport.tms.domain.entity.fleet.DepenseMission;
+import com.transport.tms.domain.entity.fleet.Mission;
+import com.transport.tms.dto.fleet.request.DepenseMissionRequest;
+import com.transport.tms.dto.fleet.request.MissionRequest;
+import com.transport.tms.dto.fleet.response.DepenseMissionResponse;
+import com.transport.tms.dto.fleet.response.MissionResponse;
+import org.springframework.stereotype.Component;
+
+@Component
+public class MissionMapper {
+
+    public Mission toEntity(MissionRequest request) {
+        Mission mission = new Mission();
+        mission.setTitle(request.title());
+        mission.setClientId(request.clientId());
+        mission.setDepartureLocation(request.departureLocation());
+        mission.setArrivalLocation(request.arrivalLocation());
+        mission.setPlannedDeparture(request.plannedDeparture());
+        mission.setPlannedReturn(request.plannedReturn());
+        mission.setPurpose(request.purpose());
+        mission.setCargoDescription(request.cargoDescription());
+        mission.setCargoWeight(request.cargoWeight());
+        mission.setNotes(request.notes());
+        return mission;
+    }
+
+    public void updateEntity(Mission mission, MissionRequest request) {
+        mission.setTitle(request.title());
+        mission.setClientId(request.clientId());
+        mission.setDepartureLocation(request.departureLocation());
+        mission.setArrivalLocation(request.arrivalLocation());
+        mission.setPlannedDeparture(request.plannedDeparture());
+        mission.setPlannedReturn(request.plannedReturn());
+        mission.setPurpose(request.purpose());
+        mission.setCargoDescription(request.cargoDescription());
+        mission.setCargoWeight(request.cargoWeight());
+        mission.setNotes(request.notes());
+    }
+
+    public MissionResponse toResponse(Mission mission) {
+        String chauffeurNom = null;
+        if (mission.getChauffeur() != null) {
+            chauffeurNom = mission.getChauffeur().getNom()
+                    + " " + mission.getChauffeur().getPrenom();
+        }
+
+        return new MissionResponse(
+                mission.getId(),
+                mission.getReference(),
+                mission.getTitle(),
+                mission.getClientId(),
+                mission.getVehicule().getId(),
+                mission.getVehicule().getReference(),
+                mission.getVehicule().getImmatriculation(),
+                mission.getChauffeur().getId(),
+                chauffeurNom,
+                mission.getStatut(),
+                mission.getDepartureLocation(),
+                mission.getArrivalLocation(),
+                mission.getPlannedDeparture(),
+                mission.getPlannedReturn(),
+                mission.getActualDeparture(),
+                mission.getActualReturn(),
+                mission.getPurpose(),
+                mission.getCargoDescription(),
+                mission.getCargoWeight(),
+                mission.getMileageAtDeparture(),
+                mission.getMileageAtReturn(),
+                mission.getTotalKm(),
+                mission.getFuelCost(),
+                mission.getTollCost(),
+                mission.getOtherExpenses(),
+                mission.getTotalCost(),
+                mission.getRevenue(),
+                mission.getInvoiceId(),
+                mission.getNotes(),
+                mission.getApprovedBy(),
+                mission.getApprovedAt(),
+                mission.getCreatedAt(),
+                mission.getUpdatedAt()
+        );
+    }
+
+    // ── Dépenses ──────────────────────────────────────────────
+
+    public DepenseMission toDepenseEntity(DepenseMissionRequest request) {
+        DepenseMission depense = new DepenseMission();
+        depense.setExpenseType(request.expenseType());
+        depense.setMontant(request.montant());
+        depense.setCurrency(request.currency() != null ? request.currency() : "TND");
+        depense.setExpenseDate(request.expenseDate());
+        depense.setDescription(request.description());
+        depense.setReceiptPath(request.receiptPath());
+        depense.setIsReimbursable(request.isReimbursable() != null
+                ? request.isReimbursable()
+                : true);
+        return depense;
+    }
+
+    public DepenseMissionResponse toDepenseResponse(DepenseMission depense) {
+        return new DepenseMissionResponse(
+                depense.getId(),
+                depense.getMission().getId(),
+                depense.getMission().getReference(),
+                depense.getExpenseType(),
+                depense.getMontant(),
+                depense.getCurrency(),
+                depense.getExpenseDate(),
+                depense.getDescription(),
+                depense.getReceiptPath(),
+                depense.getIsReimbursable(),
+                depense.getCreatedAt()
+        );
+    }
+}

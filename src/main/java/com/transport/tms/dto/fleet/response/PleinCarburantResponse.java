@@ -1,0 +1,27 @@
+package com.transport.tms.dto.fleet.response;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+public record PleinCarburantResponse(
+        Long id,
+        String reference,
+        Long vehiculeId,
+        String vehiculeRef,
+        String vehiculeImmatriculation,
+        Long chauffeurId,
+        String chauffeurNom,
+        LocalDateTime fillingDate,
+        String fuelType,
+        BigDecimal quantityLiters,
+        BigDecimal pricePerLiter,
+        BigDecimal totalAmount,
+        BigDecimal mileageBefore,
+        BigDecimal mileageAfter,
+        BigDecimal distanceSinceLast,
+        BigDecimal consumptionRate,
+        Boolean isFullTank,
+        String receiptNumber,
+        String notes,
+        String proofUrl,
+        LocalDateTime createdAt
+) {}

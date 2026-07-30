@@ -8,7 +8,7 @@ import org.mapstruct.*;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface FleetDocumentMapper {
     @Mapping(source = "vehicle.id", target = "vehicleId")
-    @Mapping(source = "vehicle.registration", target = "vehicleRegistration")
+    @Mapping(source = "vehicle.immatriculation", target = "vehicleRegistration")
     @Mapping(source = "driver.id", target = "driverId")
     @Mapping(source = "driver.fullName", target = "driverName")
     FleetDocumentResponse toResponse(FleetDocument entity);

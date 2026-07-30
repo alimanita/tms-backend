@@ -12,6 +12,8 @@ public record AuthResponse(
             Long id,
             String username,
             String fullName,
+            Long entrepriseId,
+
             List<String> roles
     ) {}
 }

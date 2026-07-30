@@ -1,10 +1,13 @@
 package com.transport.tms.domain.entity;
 
+import com.transport.tms.domain.entity.fleet.Chauffeur;
+import com.transport.tms.domain.entity.fleet.Vehicule;
 import com.transport.tms.domain.enums.DocumentType;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+
 import java.time.Instant;
 import java.time.LocalDate;
 
@@ -19,11 +22,11 @@ public class FleetDocument {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id")
-    private Vehicle vehicle;
+    private Vehicule vehicle;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "driver_id")
-    private Driver driver;
+    private Chauffeur driver;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "document_type", nullable = false)
