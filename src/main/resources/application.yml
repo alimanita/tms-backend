@@ -15,13 +15,15 @@ spring:
         jdbc:
           time_zone: UTC
         format_sql: true
-    show-sql: false
+    show-sql: true
   flyway:
     enabled: false
+
 server:
   port: ${SERVER_PORT:8080}
   servlet:
     context-path: /
+
 tms:
   jwt:
     secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBobWFjU0hBMzg0LWF0LWxlYXN0LTM4NC1iaXRzLWxvbmcx}
@@ -29,12 +31,15 @@ tms:
     refresh-token-expiration-ms: 6048000000
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:8080}
+
 springdoc:
   api-docs:
     path: /api-docs
   swagger-ui:
+    enabled: true
     path: /swagger-ui.html
+
 logging:
   level:
-    com.transport.tms: INFO
-    org.hibernate.SQL: OFF
+    com.transport.tms: DEBUG
+    org.hibernate.SQL: DEBUG
