@@ -16,7 +16,6 @@ public record OTPieceRechangeRequest(
 
     BigDecimal quantityUsed,
 
-    @NotNull(message = "Le coût unitaire est obligatoire")
     @DecimalMin(value = "0.00")
     BigDecimal unitCost
 ) {}
