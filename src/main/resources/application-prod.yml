@@ -16,3 +16,6 @@ tms:
 springdoc:
   swagger-ui:
     enabled: false
+app:
+  upload:
+    fuel-proofs-dir: /app/uploads/fuel-proofs

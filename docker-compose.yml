@@ -31,6 +31,7 @@ services:
 
 volumes:
   tms_postgres_data:
+  tms_uploads_data:
 
 networks:
   tms-network:
