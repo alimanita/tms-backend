@@ -109,4 +109,15 @@ public class ChauffeurServiceImpl implements ChauffeurService {
                 .map(chauffeurMapper::toResponse)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public ChauffeurResponse toggleActif(Long id) {
+        log.info("Toggle actif du chauffeur ID: {}", id);
+        Chauffeur chauffeur = chauffeurRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Chauffeur introuvable, id=" + id));
+
+        chauffeur.setActif(!Boolean.TRUE.equals(chauffeur.getActif()));
+        Chauffeur saved = chauffeurRepository.save(chauffeur);
+        return chauffeurMapper.toResponse(saved);
+    }
 }

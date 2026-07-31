@@ -16,4 +16,5 @@ public interface VehiculeService {
     List<VehiculeResponse> findDisponibles();
     VehiculeResponse updateStatut(Long id, String statut);
     void delete(Long id);
+    VehiculeResponse toggleActif(Long id);
 }

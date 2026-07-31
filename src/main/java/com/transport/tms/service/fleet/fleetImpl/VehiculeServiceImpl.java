@@ -75,7 +75,8 @@ public class VehiculeServiceImpl implements VehiculeService {
     @Override
     @Transactional(readOnly = true)
     public Page<VehiculeResponse> findAll(Pageable pageable) {
-        return vehiculeRepository.findByActifTrue(pageable)
+       // return vehiculeRepository.findByActifTrue(pageable)
+        return  vehiculeRepository.findAll( pageable)
                 .map(vehiculeMapper::toResponse);
     }
 
@@ -119,5 +120,16 @@ public class VehiculeServiceImpl implements VehiculeService {
         return vehiculeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Véhicule introuvable avec l'ID = " + id));
+    }
+
+    @Override
+    public VehiculeResponse toggleActif(Long id) {
+        log.info("Toggle actif du véhicule ID: {}", id);
+        Vehicule vehicule = vehiculeRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Véhicule introuvable, id=" + id));
+
+        vehicule.setActif(!Boolean.TRUE.equals(vehicule.getActif()));
+        Vehicule saved = vehiculeRepository.save(vehicule);
+        return vehiculeMapper.toResponse(saved);
     }
 }

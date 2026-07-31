@@ -54,4 +54,9 @@ public class ChauffeurController implements ChauffeurApi {
     public ResponseEntity<List<ChauffeurResponse>> findActifs() {
         return ResponseEntity.ok(chauffeurService.getAllActive());
     }
+
+    @Override
+    public ResponseEntity<ChauffeurResponse> toggleActif(Long id) {
+        return ResponseEntity.ok(chauffeurService.toggleActif(id));
+    }
 }

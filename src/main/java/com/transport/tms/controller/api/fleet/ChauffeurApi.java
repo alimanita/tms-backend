@@ -32,4 +32,7 @@ public interface ChauffeurApi {
 
     @GetMapping("/actifs")
     ResponseEntity<List<ChauffeurResponse>> findActifs();
+
+    @PatchMapping("/{id}/toggle-actif")
+    ResponseEntity<ChauffeurResponse> toggleActif(@PathVariable Long id);
 }

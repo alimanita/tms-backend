@@ -19,7 +19,7 @@
       "icon": "local_shipping",
       "children": [
         {
-          "route": "/fleet/vehicles",
+          "route": "/fleet/vehicules",
           "name": "Véhicules",
           "type": "link",
           "icon": "directions_car"

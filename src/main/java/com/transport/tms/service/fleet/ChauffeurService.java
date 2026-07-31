@@ -21,5 +21,7 @@ public interface ChauffeurService {
     Page<ChauffeurResponse> getAll(Pageable pageable);
     
     List<ChauffeurResponse> getAllActive();
+
+    ChauffeurResponse toggleActif(Long id);
     
 }

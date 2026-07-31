@@ -30,4 +30,6 @@ public interface VehiculeApi {
                                                   @RequestParam String statut);
     @GetMapping("/disponibles")
     ResponseEntity<List<VehiculeResponse>> findDisponibles();
+    @PatchMapping("/{id}/toggle-actif")
+    ResponseEntity<VehiculeResponse> toggleActif(@PathVariable Long id);
 }
