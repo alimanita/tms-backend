@@ -162,18 +162,23 @@ public interface OrdreTravailRepository extends JpaRepository<OrdreTravail, Long
     // ── RAPPORTS ENTRETIENS : agrégation par mois ──────────────────────────
     @Query(value = """
         SELECT
-            EXTRACT(YEAR FROM o.completed_at)::int AS annee,
-            EXTRACT(MONTH FROM o.completed_at)::int AS mois,
-            COALESCE(SUM(o.actual_labor_cost), 0) AS cout_main_oeuvre,
-            COALESCE(SUM(o.actual_parts_cost), 0) AS cout_pieces,
-            COALESCE(SUM(o.actual_labor_cost + o.actual_parts_cost), 0) AS cout_total,
-            COUNT(*) AS nombre_ot
+            EXTRACT(YEAR  FROM COALESCE(o.completed_at, o.updated_at))::int  AS annee,
+            EXTRACT(MONTH FROM COALESCE(o.completed_at, o.updated_at))::int  AS mois,
+            COALESCE(SUM(COALESCE(ml.hours_actual, ml.hours_planned) * ml.hourly_rate), 0)          AS cout_main_oeuvre,
+            COALESCE(SUM(COALESCE(ms.quantity_used, ms.quantity_planned) * ms.unit_cost), 0)        AS cout_pieces,
+            COALESCE(SUM(COALESCE(ml.hours_actual, ml.hours_planned) * ml.hourly_rate), 0)
+            + COALESCE(SUM(COALESCE(ms.quantity_used, ms.quantity_planned) * ms.unit_cost), 0)      AS cout_total,
+            COUNT(DISTINCT o.id)                                                                    AS nombre_ot
         FROM ordre_travail o
+        LEFT JOIN maintenance_labor      ml ON ml.maintenance_order_id = o.id
+        LEFT JOIN maintenance_spare_part ms ON ms.maintenance_order_id = o.id
         WHERE o.statut = 'COMPLETED'
         AND (:entityType IS NULL OR o.entity_type = :entityType)
-        AND o.completed_at BETWEEN :debut AND :fin
-        GROUP BY EXTRACT(YEAR FROM o.completed_at), EXTRACT(MONTH FROM o.completed_at)
-        ORDER BY EXTRACT(YEAR FROM o.completed_at), EXTRACT(MONTH FROM o.completed_at)
+        AND COALESCE(o.completed_at, o.updated_at) BETWEEN :debut AND :fin
+        GROUP BY EXTRACT(YEAR  FROM COALESCE(o.completed_at, o.updated_at)),
+                 EXTRACT(MONTH FROM COALESCE(o.completed_at, o.updated_at))
+        ORDER BY EXTRACT(YEAR  FROM COALESCE(o.completed_at, o.updated_at)),
+                 EXTRACT(MONTH FROM COALESCE(o.completed_at, o.updated_at))
         """, nativeQuery = true)
     List<Object[]> aggregateParMoisNative(
             @Param("entityType") String entityType,
@@ -183,17 +188,20 @@ public interface OrdreTravailRepository extends JpaRepository<OrdreTravail, Long
     // Agrégation par année
     @Query(value = """
         SELECT
-            EXTRACT(YEAR FROM o.completed_at)::int AS annee,
-            COALESCE(SUM(o.actual_labor_cost), 0) AS cout_main_oeuvre,
-            COALESCE(SUM(o.actual_parts_cost), 0) AS cout_pieces,
-            COALESCE(SUM(o.actual_labor_cost + o.actual_parts_cost), 0) AS cout_total,
-            COUNT(*) AS nombre_ot
+            EXTRACT(YEAR FROM COALESCE(o.completed_at, o.updated_at))::int              AS annee,
+            COALESCE(SUM(COALESCE(ml.hours_actual, ml.hours_planned) * ml.hourly_rate), 0)       AS cout_main_oeuvre,
+            COALESCE(SUM(COALESCE(ms.quantity_used, ms.quantity_planned) * ms.unit_cost), 0)     AS cout_pieces,
+            COALESCE(SUM(COALESCE(ml.hours_actual, ml.hours_planned) * ml.hourly_rate), 0)
+            + COALESCE(SUM(COALESCE(ms.quantity_used, ms.quantity_planned) * ms.unit_cost), 0)   AS cout_total,
+            COUNT(DISTINCT o.id)                                                                 AS nombre_ot
         FROM ordre_travail o
+        LEFT JOIN maintenance_labor      ml ON ml.maintenance_order_id = o.id
+        LEFT JOIN maintenance_spare_part ms ON ms.maintenance_order_id = o.id
         WHERE o.statut = 'COMPLETED'
         AND (:entityType IS NULL OR o.entity_type = :entityType)
-        AND EXTRACT(YEAR FROM o.completed_at) BETWEEN :debut AND :fin
-        GROUP BY EXTRACT(YEAR FROM o.completed_at)
-        ORDER BY EXTRACT(YEAR FROM o.completed_at)
+        AND EXTRACT(YEAR FROM COALESCE(o.completed_at, o.updated_at)) BETWEEN :debut AND :fin
+        GROUP BY EXTRACT(YEAR FROM COALESCE(o.completed_at, o.updated_at))
+        ORDER BY EXTRACT(YEAR FROM COALESCE(o.completed_at, o.updated_at))
         """, nativeQuery = true)
     List<Object[]> aggregateParAnneeNative(
             @Param("entityType") String entityType,
@@ -205,36 +213,39 @@ public interface OrdreTravailRepository extends JpaRepository<OrdreTravail, Long
             SELECT o FROM OrdreTravail o
             WHERE o.statut = 'COMPLETED'
             AND (:entityType IS NULL OR o.entityType = :entityType)
-            AND o.completedAt BETWEEN :debut AND :fin
-            ORDER BY o.completedAt DESC
+            AND COALESCE(o.completedAt, o.updatedAt) BETWEEN :debut AND :fin
+            ORDER BY COALESCE(o.completedAt, o.updatedAt) DESC
             """)
     List<OrdreTravail> findDetailPourRapport(
             @Param("entityType") OrdreTravail.TypeEntite entityType,
             @Param("debut") LocalDateTime debut,
             @Param("fin") LocalDateTime fin);
 
-    // Synthèse globale
-    @Query("""
-            SELECT COALESCE(SUM(o.actualLaborCost), 0)
-            FROM OrdreTravail o
+    // Synthèse globale – main d'œuvre (LEFT JOIN maintenance_labor)
+    @Query(value = """
+            SELECT COALESCE(SUM(COALESCE(ml.hours_actual, ml.hours_planned) * ml.hourly_rate), 0)
+            FROM ordre_travail o
+            LEFT JOIN maintenance_labor ml ON ml.maintenance_order_id = o.id
             WHERE o.statut = 'COMPLETED'
-            AND (:entityType IS NULL OR o.entityType = :entityType)
-            AND o.completedAt BETWEEN :debut AND :fin
-            """)
+            AND (:entityType IS NULL OR o.entity_type = :entityType)
+            AND COALESCE(o.completed_at, o.updated_at) BETWEEN :debut AND :fin
+            """, nativeQuery = true)
     java.math.BigDecimal sumMainOeuvrePourRapport(
-            @Param("entityType") OrdreTravail.TypeEntite entityType,
+            @Param("entityType") String entityType,
             @Param("debut") LocalDateTime debut,
             @Param("fin") LocalDateTime fin);
 
-    @Query("""
-            SELECT COALESCE(SUM(o.actualPartsCost), 0)
-            FROM OrdreTravail o
+    // Synthèse globale – pièces (LEFT JOIN maintenance_spare_part)
+    @Query(value = """
+            SELECT COALESCE(SUM(COALESCE(ms.quantity_used, ms.quantity_planned) * ms.unit_cost), 0)
+            FROM ordre_travail o
+            LEFT JOIN maintenance_spare_part ms ON ms.maintenance_order_id = o.id
             WHERE o.statut = 'COMPLETED'
-            AND (:entityType IS NULL OR o.entityType = :entityType)
-            AND o.completedAt BETWEEN :debut AND :fin
-            """)
+            AND (:entityType IS NULL OR o.entity_type = :entityType)
+            AND COALESCE(o.completed_at, o.updated_at) BETWEEN :debut AND :fin
+            """, nativeQuery = true)
     java.math.BigDecimal sumPiecesPourRapport(
-            @Param("entityType") OrdreTravail.TypeEntite entityType,
+            @Param("entityType") String entityType,
             @Param("debut") LocalDateTime debut,
             @Param("fin") LocalDateTime fin);
 

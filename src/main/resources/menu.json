@@ -137,6 +137,19 @@
           "icon": "admin_panel_settings"
         }
       ]
+    },
+    {
+      "route": "reports",
+      "name": "reports",
+      "type": "link",
+      "icon": "assessment",
+      "permissions": {
+        "only": [
+          "ADMIN",
+          "SUPERADMIN",
+          "SUPER_ADMIN"
+        ]
+      }
     }
   ]
 }

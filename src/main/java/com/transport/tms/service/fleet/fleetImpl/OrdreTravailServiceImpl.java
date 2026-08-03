@@ -163,7 +163,20 @@ public class OrdreTravailServiceImpl implements OrdreTravailService {
     @Override
     public OrdreTravailResponse cloturer(Long id) {
         OrdreTravail ordre = findEntityById(id);
-        ordre.cloturer(); // les coûts sont maintenant toujours à jour via les getters dynamiques
+        ordre.cloturer(); // set statut = COMPLETED et completedAt = now()
+
+        // Persister les coûts calculés dans les colonnes de la table
+        // (les getters sont dynamiques mais les colonnes DB ne sont jamais écrites autrement)
+        BigDecimal laborCost = ordre.getMainOeuvres().stream()
+                .map(OTMainOeuvre::getTotalCost)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal partsCost = ordre.getPieces().stream()
+                .map(OTPieceRechange::getTotalCost)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        ordre.setActualLaborCost(laborCost);
+        ordre.setActualPartsCost(partsCost);
 
         if (ordre.getEntityType() == OrdreTravail.TypeEntite.VEHICLE) {
             Vehicule vehicule = findVehiculeById(ordre.getEntityId());

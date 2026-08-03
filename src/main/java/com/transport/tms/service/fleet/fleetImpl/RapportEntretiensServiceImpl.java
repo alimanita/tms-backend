@@ -127,9 +127,9 @@ public class RapportEntretiensServiceImpl implements RapportEntretiensService {
         LocalDateTime finDt   = fin.atTime(23, 59, 59);
 
         BigDecimal coutMainOeuvre = ordreTravailRepository
-                .sumMainOeuvrePourRapport(entityType, debutDt, finDt);
+                .sumMainOeuvrePourRapport(entityType != null ? entityType.name() : null, debutDt, finDt);
         BigDecimal coutPieces = ordreTravailRepository
-                .sumPiecesPourRapport(entityType, debutDt, finDt);
+                .sumPiecesPourRapport(entityType != null ? entityType.name() : null, debutDt, finDt);
         BigDecimal coutMaintenance = coutMainOeuvre.add(coutPieces);
 
         // Carburant (tous véhicules sur la période)
