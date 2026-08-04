@@ -24,6 +24,9 @@ import java.util.List;
 public class RapportsApiController {
 
     private final RapportEntretiensService rapportService;
+    private final com.transport.tms.repository.fleet.MissionRepository missionRepository;
+    private final com.transport.tms.repository.AmazonPurchaseRepository amazonPurchaseRepository;
+    private final com.transport.tms.repository.FinancialEntryRepository financialEntryRepository;
 
     // ── Entretiens / Maintenance ──────────────────────────────────────────────
 
@@ -89,5 +92,75 @@ public class RapportsApiController {
         int ad = anDebut > 0 ? anDebut : currentYear - 4;
         int af = anFin > 0 ? anFin : currentYear;
         return ResponseEntity.ok(rapportService.getCarburantAnnuel(vehiculeId, ad, af));
+    }
+
+    // --- Nouveaux Rapports (Missions, Amazon, Finance) ---
+
+    @GetMapping("/missions/stats")
+    public ResponseEntity<MissionStatsDto> getMissionsStats() {
+        MissionStatsDto dto = new MissionStatsDto();
+        dto.setMissionsByDriver(convertToLongMap(missionRepository.countMissionsByDriver()));
+        dto.setMissionsByStatus(convertToLongMap(missionRepository.countMissionsByStatus()));
+        dto.setMileageByDriver(convertToBigDecimalMap(missionRepository.sumMileageByDriver()));
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/amazon/stats")
+    public ResponseEntity<AmazonStatsDto> getAmazonStats() {
+        AmazonStatsDto dto = new AmazonStatsDto();
+        dto.setExpensesByMonth(convertToBigDecimalMap(amazonPurchaseRepository.sumExpensesByMonth()));
+        dto.setExpensesBySupplier(convertToBigDecimalMap(amazonPurchaseRepository.sumExpensesBySupplier()));
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/finance/stats")
+    public ResponseEntity<FinanceStatsDto> getFinanceStats() {
+        FinanceStatsDto dto = new FinanceStatsDto();
+        dto.setMonthlyRevenue(convertToBigDecimalMap(missionRepository.sumRevenueByMonth()));
+        
+        java.util.Map<String, java.math.BigDecimal> combinedExpenses = new java.util.HashMap<>();
+        java.util.Map<String, java.math.BigDecimal> amazonMonth = convertToBigDecimalMap(amazonPurchaseRepository.sumExpensesByMonth());
+        java.util.Map<String, java.math.BigDecimal> generalMonth = convertToBigDecimalMap(financialEntryRepository.sumExpensesByMonth());
+        
+        amazonMonth.forEach((k, v) -> combinedExpenses.merge(k, v, java.math.BigDecimal::add));
+        generalMonth.forEach((k, v) -> combinedExpenses.merge(k, v, java.math.BigDecimal::add));
+        
+        dto.setMonthlyExpenses(combinedExpenses);
+        
+        java.util.Map<String, java.math.BigDecimal> results = new java.util.HashMap<>();
+        dto.getMonthlyRevenue().forEach((month, rev) -> {
+            java.math.BigDecimal exp = combinedExpenses.getOrDefault(month, java.math.BigDecimal.ZERO);
+            results.put(month, rev.subtract(exp));
+        });
+        // Pour les mois avec dépenses mais sans revenus
+        combinedExpenses.forEach((month, exp) -> {
+            if (!results.containsKey(month)) {
+                results.put(month, java.math.BigDecimal.ZERO.subtract(exp));
+            }
+        });
+        
+        dto.setMonthlyResult(results);
+        dto.setFleetExpensesByCategory(convertToBigDecimalMap(financialEntryRepository.sumExpensesByCategory()));
+        return ResponseEntity.ok(dto);
+    }
+    
+    private java.util.Map<String, Long> convertToLongMap(List<Object[]> queryResult) {
+        java.util.Map<String, Long> map = new java.util.HashMap<>();
+        for (Object[] row : queryResult) {
+            if (row[0] != null && row[1] != null) {
+                map.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
+            }
+        }
+        return map;
+    }
+    
+    private java.util.Map<String, java.math.BigDecimal> convertToBigDecimalMap(List<Object[]> queryResult) {
+        java.util.Map<String, java.math.BigDecimal> map = new java.util.HashMap<>();
+        for (Object[] row : queryResult) {
+            if (row[0] != null && row[1] != null) {
+                map.put(String.valueOf(row[0]), new java.math.BigDecimal(row[1].toString()));
+            }
+        }
+        return map;
     }
 }

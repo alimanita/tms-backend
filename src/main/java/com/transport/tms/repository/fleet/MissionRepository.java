@@ -69,8 +69,8 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
             SELECT COALESCE(SUM(m.totalCost), 0)
             FROM Mission m
             WHERE m.statut = 'COMPLETED'
-            AND FUNCTION('YEAR', m.actualReturn) = :annee
-            AND FUNCTION('MONTH', m.actualReturn) = :mois
+            AND EXTRACT(YEAR FROM m.actualReturn) = :annee
+            AND EXTRACT(MONTH FROM m.actualReturn) = :mois
             """)
     BigDecimal sumCoutMissions(
             @Param("annee") int annee,
@@ -91,4 +91,53 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
     long countByChauffeurIdAndStatutAndActualReturnBetween(
             Long chauffeurId, Mission.StatutMission statut,
             LocalDateTime debut, LocalDateTime fin);
+
+    // --- Aggregations pour les Rapports ---
+    @Query("SELECT CONCAT(c.prenom, ' ', c.nom), COUNT(m) FROM Mission m JOIN m.chauffeur c GROUP BY c.id, c.prenom, c.nom")
+    List<Object[]> countMissionsByDriver();
+
+    @Query("SELECT m.statut, COUNT(m) FROM Mission m GROUP BY m.statut")
+    List<Object[]> countMissionsByStatus();
+
+    @Query("SELECT CONCAT(c.prenom, ' ', c.nom), SUM(m.mileageAtReturn - m.mileageAtDeparture) FROM Mission m JOIN m.chauffeur c WHERE m.mileageAtReturn IS NOT NULL AND m.mileageAtDeparture IS NOT NULL GROUP BY c.id, c.prenom, c.nom")
+    List<Object[]> sumMileageByDriver();
+
+    @Query("SELECT EXTRACT(MONTH FROM m.actualReturn), SUM(m.revenue) FROM Mission m WHERE m.statut = 'COMPLETED' AND m.actualReturn IS NOT NULL GROUP BY EXTRACT(MONTH FROM m.actualReturn)")
+    List<Object[]> sumRevenueByMonth();
+
+    // --- Dashboard KPIs ---
+
+    /** Somme de tous les revenus des missions clôturées (tout le temps). */
+    @Query("SELECT COALESCE(SUM(m.revenue), 0) FROM Mission m WHERE m.statut = 'COMPLETED' AND m.revenue IS NOT NULL")
+    BigDecimal sumAllRevenue();
+
+    /** Somme des coûts de toutes les missions clôturées (tout le temps). */
+    @Query("SELECT COALESCE(SUM(m.totalCost), 0) FROM Mission m WHERE m.statut = 'COMPLETED' AND m.totalCost IS NOT NULL")
+    BigDecimal sumAllMissionCost();
+
+    /** Revenus mensuels (6 derniers mois) pour le graphique du dashboard. */
+    @Query("""
+        SELECT EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn), COALESCE(SUM(m.revenue), 0)
+        FROM Mission m
+        WHERE m.statut = 'COMPLETED'
+        AND m.actualReturn IS NOT NULL
+        AND m.actualReturn >= :fromDate
+        GROUP BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
+        ORDER BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
+        """)
+    List<Object[]> sumRevenueByYearMonth(@Param("fromDate") LocalDateTime fromDate);
+    /** Coûts missions mensuels (6 derniers mois) pour le graphique du dashboard. */
+    @Query("""
+        SELECT EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn), COALESCE(SUM(m.totalCost), 0)
+        FROM Mission m
+        WHERE m.statut = 'COMPLETED'
+        AND m.actualReturn IS NOT NULL
+        AND m.totalCost IS NOT NULL
+        AND m.actualReturn >= :fromDate
+        GROUP BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
+        ORDER BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
+        """)
+    List<Object[]> sumCostByYearMonth(@Param("fromDate") LocalDateTime fromDate);
+
+
 }

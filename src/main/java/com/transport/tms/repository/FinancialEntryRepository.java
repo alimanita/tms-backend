@@ -24,4 +24,12 @@ public interface FinancialEntryRepository extends JpaRepository<FinancialEntry, 
             ORDER BY f.entryDate
             """)
     List<Object[]> sumAmountGroupedByDate(String entryType, LocalDate fromDate);
+
+    // --- Aggregations pour les Rapports ---
+
+    @Query("SELECT FUNCTION('MONTH', f.entryDate), SUM(f.amount) FROM FinancialEntry f WHERE f.entryType = 'OUT' GROUP BY FUNCTION('MONTH', f.entryDate)")
+    List<Object[]> sumExpensesByMonth();
+
+    @Query("SELECT f.category, SUM(f.amount) FROM FinancialEntry f WHERE f.entryType = 'OUT' AND f.category IS NOT NULL GROUP BY f.category")
+    List<Object[]> sumExpensesByCategory();
 }
