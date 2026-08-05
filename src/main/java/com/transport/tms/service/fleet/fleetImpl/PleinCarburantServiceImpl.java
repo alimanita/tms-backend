@@ -51,7 +51,9 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Véhicule introuvable avec l'ID = " + request.vehiculeId()));
-
+        log.info("=== createPleinCarburant ===");
+        log.info("Request: vehiculeId={}, fuelType={}, quantity={}",
+                request.vehiculeId(), request.fuelType(), request.quantityLiters());
         if (request.mileageAfter() != null) {
             BigDecimal dernierKm = vehicule.getKilometrageActuel();
             if (request.mileageAfter().compareTo(dernierKm) < 0) {
