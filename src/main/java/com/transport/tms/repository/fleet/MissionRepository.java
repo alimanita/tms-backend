@@ -114,6 +114,12 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
     /** Somme des coûts de toutes les missions clôturées (tout le temps). */
     @Query("SELECT COALESCE(SUM(m.totalCost), 0) FROM Mission m WHERE m.statut = 'COMPLETED' AND m.totalCost IS NOT NULL")
     BigDecimal sumAllMissionCost();
+    
+    @Query("SELECT COALESCE(SUM(m.tollCost), 0) FROM Mission m WHERE m.statut = 'COMPLETED' AND m.tollCost IS NOT NULL")
+    BigDecimal sumAllTollCost();
+
+    @Query("SELECT COALESCE(SUM(m.fuelCost), 0) FROM Mission m WHERE m.statut = 'COMPLETED' AND m.fuelCost IS NOT NULL")
+    BigDecimal sumAllFuelCost();
 
     /** Revenus mensuels (6 derniers mois) pour le graphique du dashboard. */
     @Query("""

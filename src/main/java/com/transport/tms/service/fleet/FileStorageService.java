@@ -26,9 +26,13 @@ public class FileStorageService {
     private String uploadDir;
 
     public String store(MultipartFile file) {
+        return store(file, "");
+    }
+
+    public String store(MultipartFile file, String subDir) {
         try {
             log.info("=== store file ===");
-            log.info("uploadDir: {}", uploadDir);
+            log.info("uploadDir: {}/{}", uploadDir, subDir);
             log.info("originalName: {}", file.getOriginalFilename());
             log.info("size: {} bytes", file.getSize());
             log.info("contentType: {}", file.getContentType());
@@ -38,7 +42,7 @@ public class FileStorageService {
                 return null;
             }
 
-            Path dirPath = Paths.get(uploadDir);
+            Path dirPath = Paths.get(uploadDir, subDir);
             Files.createDirectories(dirPath);
             log.info("Dossier créé/vérifié: {}", dirPath.toAbsolutePath());
 
@@ -72,6 +76,10 @@ public class FileStorageService {
     }
 
     public Resource load(String filename) {
+        return load(filename, "");
+    }
+
+    public Resource load(String filename, String subDir) {
         try {
             log.info("=== load file ===");
             log.info("filename: {}", filename);
@@ -82,7 +90,7 @@ public class FileStorageService {
                 throw new EntityNotFoundException("Nom de fichier invalide");
             }
 
-            Path file = Paths.get(uploadDir).resolve(filename);
+            Path file = Paths.get(uploadDir, subDir).resolve(filename);
             log.info("Chemin résolu: {}", file.toAbsolutePath());
 
             Resource resource = new UrlResource(file.toUri());
@@ -106,6 +114,10 @@ public class FileStorageService {
     }
 
     public void delete(String filename) {
+        delete(filename, "");
+    }
+
+    public void delete(String filename, String subDir) {
         if (filename == null) {
             return;
         }
@@ -114,7 +126,7 @@ public class FileStorageService {
             log.info("=== delete file ===");
             log.info("filename: {}", filename);
 
-            Path file = Paths.get(uploadDir).resolve(filename);
+            Path file = Paths.get(uploadDir, subDir).resolve(filename);
             boolean deleted = Files.deleteIfExists(file);
             log.info("Fichier supprimé: {}", deleted);
         } catch (IOException e) {

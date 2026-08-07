@@ -35,5 +35,7 @@ public record ChauffeurRequest(
 
         String notes,
         Boolean actif,
-          Long idUtilisateur
+        com.transport.tms.domain.enums.TypeSalaire typeSalaire,
+        BigDecimal valeurSalaire,
+        Long idUtilisateur
 ) {}

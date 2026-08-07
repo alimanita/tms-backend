@@ -114,4 +114,19 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
             @Param("vehiculeId") Long vehiculeId,
             @Param("debut") LocalDateTime debut,
             @Param("fin") LocalDateTime fin);
+
+    @Query("""
+            SELECT COALESCE(SUM(p.quantityLiters * p.pricePerLiter), 0)
+            FROM PleinCarburant p
+            """)
+    BigDecimal sumAllCoutCarburant();
+
+    @Query("""
+        SELECT EXTRACT(YEAR FROM p.fillingDate), EXTRACT(MONTH FROM p.fillingDate), COALESCE(SUM(p.quantityLiters * p.pricePerLiter), 0)
+        FROM PleinCarburant p
+        WHERE p.fillingDate >= :fromDate
+        GROUP BY EXTRACT(YEAR FROM p.fillingDate), EXTRACT(MONTH FROM p.fillingDate)
+        ORDER BY EXTRACT(YEAR FROM p.fillingDate), EXTRACT(MONTH FROM p.fillingDate)
+        """)
+    List<Object[]> sumCostByYearMonth(@Param("fromDate") LocalDateTime fromDate);
 }

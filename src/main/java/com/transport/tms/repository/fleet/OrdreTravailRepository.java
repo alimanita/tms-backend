@@ -308,4 +308,21 @@ public interface OrdreTravailRepository extends JpaRepository<OrdreTravail, Long
             @Param("dateFin") LocalDateTime dateFin,
             Pageable pageable);
 
+    @Query("""
+            SELECT COALESCE(SUM(o.actualLaborCost + o.actualPartsCost), 0)
+            FROM OrdreTravail o
+            WHERE o.statut = 'COMPLETED'
+            """)
+    java.math.BigDecimal sumAllCout();
+
+    @Query("""
+        SELECT EXTRACT(YEAR FROM COALESCE(o.completedAt, o.updatedAt)), EXTRACT(MONTH FROM COALESCE(o.completedAt, o.updatedAt)), COALESCE(SUM(o.actualLaborCost + o.actualPartsCost), 0)
+        FROM OrdreTravail o
+        WHERE o.statut = 'COMPLETED'
+        AND COALESCE(o.completedAt, o.updatedAt) >= :fromDate
+        GROUP BY EXTRACT(YEAR FROM COALESCE(o.completedAt, o.updatedAt)), EXTRACT(MONTH FROM COALESCE(o.completedAt, o.updatedAt))
+        ORDER BY EXTRACT(YEAR FROM COALESCE(o.completedAt, o.updatedAt)), EXTRACT(MONTH FROM COALESCE(o.completedAt, o.updatedAt))
+        """)
+    List<Object[]> sumCostByYearMonth(@Param("fromDate") LocalDateTime fromDate);
+
 }

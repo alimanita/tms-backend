@@ -49,6 +49,8 @@ public class ChauffeurMapper {
 
         chauffeur.setNotes(request.notes());
         chauffeur.setActif(request.actif() != null ? request.actif() : true);
+        chauffeur.setTypeSalaire(request.typeSalaire());
+        chauffeur.setValeurSalaire(request.valeurSalaire());
 
         resolveUtilisateur(request.idUtilisateur(), chauffeur);
 
@@ -111,6 +113,12 @@ public class ChauffeurMapper {
         if (request.actif() != null) {
             chauffeur.setActif(request.actif());
         }
+        if (request.typeSalaire() != null) {
+            chauffeur.setTypeSalaire(request.typeSalaire());
+        }
+        if (request.valeurSalaire() != null) {
+            chauffeur.setValeurSalaire(request.valeurSalaire());
+        }
 
         // idUtilisateur : traité explicitement même si null, pour permettre le déliaison
         resolveUtilisateur(request.idUtilisateur(), chauffeur);
@@ -145,7 +153,9 @@ public class ChauffeurMapper {
                 chauffeur.getCreatedAt(),
                 chauffeur.getUpdatedAt(),
                 utilisateur != null ? utilisateur.getId() : null,
-                utilisateur != null ? utilisateur.getEmail() : null
+                utilisateur != null ? utilisateur.getEmail() : null,
+                chauffeur.getTypeSalaire(),
+                chauffeur.getValeurSalaire()
         );
     }
 

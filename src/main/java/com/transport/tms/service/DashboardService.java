@@ -26,11 +26,12 @@ public class DashboardService {
     private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
 
     private final MissionRepository          missionRepository;
-    private final AmazonPurchaseRepository   amazonPurchaseRepository;
     private final FinancialEntryRepository   financialEntryRepository;
     private final CustomerOrderRepository    customerOrderRepository;
     private final VehiculeRepository         vehicleRepository;
     private final NotificationRepository     notificationRepository;
+    private final PleinCarburantRepository   pleinCarburantRepository;
+    private final OrdreTravailRepository     ordreTravailRepository;
 
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard() {
@@ -39,12 +40,18 @@ public class DashboardService {
         BigDecimal revenue = missionRepository.sumAllRevenue();
         if (revenue == null) revenue = BigDecimal.ZERO;
 
-        // ── Dépenses = Achats Amazon + coûts missions ──────────────────────────
-        BigDecimal amazonCost  = amazonPurchaseRepository.sumAllAmountTtc();
+        // ── Dépenses = coûts missions + carburant + maintenance ──────────────
         BigDecimal missionCost = missionRepository.sumAllMissionCost();
-        if (amazonCost  == null) amazonCost  = BigDecimal.ZERO;
+        BigDecimal missionFuelCost = missionRepository.sumAllFuelCost();
+        BigDecimal fuelCost = pleinCarburantRepository.sumAllCoutCarburant();
+        BigDecimal maintenanceCost = ordreTravailRepository.sumAllCout();
+        
         if (missionCost == null) missionCost = BigDecimal.ZERO;
-        BigDecimal expenses = amazonCost.add(missionCost);
+        if (missionFuelCost == null) missionFuelCost = BigDecimal.ZERO;
+        if (fuelCost == null) fuelCost = BigDecimal.ZERO;
+        if (maintenanceCost == null) maintenanceCost = BigDecimal.ZERO;
+        
+        BigDecimal expenses = missionCost.subtract(missionFuelCost).add(fuelCost).add(maintenanceCost);
 
         // ── Bénéfice net ────────────────────────────────────────────────────────
         BigDecimal netProfit = revenue.subtract(expenses);
@@ -73,33 +80,40 @@ public class DashboardService {
                 ))
                 .toList();
 
-        // ── Graphique mensuel (6 derniers mois) ─────────────────────────────────
-        LocalDateTime fromDate = LocalDate.now().minusMonths(5).withDayOfMonth(1).atStartOfDay();
-        LocalDate fromDateLocal = fromDate.toLocalDate();
+        // ── Graphique mensuel (12 derniers mois) ─────────────────────────────────
+        LocalDateTime fromDate = LocalDate.now().minusMonths(11).withDayOfMonth(1).atStartOfDay();
 
         // Revenus mensuels depuis les missions
         List<DashboardResponse.MonthlyAmountResponse> monthlyRevenue =
                 aggregateMissionMonthly(missionRepository.sumRevenueByYearMonth(fromDate));
 
-        // Dépenses mensuelles = coûts missions + achats Amazon
+        // Dépenses mensuelles
         Map<String, BigDecimal> expensesMap = new LinkedHashMap<>();
-        // Initialiser les 6 mois à zéro
-        YearMonth start = YearMonth.now().minusMonths(5);
-        for (int i = 0; i < 6; i++) {
+        // Initialiser les 12 mois à zéro
+        YearMonth start = YearMonth.now().minusMonths(11);
+        for (int i = 0; i < 12; i++) {
             expensesMap.put(start.plusMonths(i).format(MONTH_FORMAT), BigDecimal.ZERO);
         }
+        
         // Ajouter les coûts missions par mois
         for (Object[] row : missionRepository.sumCostByYearMonth(fromDate)) {
             String key = yearMonthKey(row);
             BigDecimal val = toBigDecimal(row[2]);
             expensesMap.merge(key, val, BigDecimal::add);
         }
-        // Ajouter les achats Amazon par mois
-        for (Object[] row : amazonPurchaseRepository.sumExpensesByYearMonth(fromDateLocal)) {
+        // Ajouter les coûts de carburant par mois
+        for (Object[] row : pleinCarburantRepository.sumCostByYearMonth(fromDate)) {
             String key = yearMonthKey(row);
             BigDecimal val = toBigDecimal(row[2]);
             expensesMap.merge(key, val, BigDecimal::add);
         }
+        // Ajouter les coûts de maintenance par mois
+        for (Object[] row : ordreTravailRepository.sumCostByYearMonth(fromDate)) {
+            String key = yearMonthKey(row);
+            BigDecimal val = toBigDecimal(row[2]);
+            expensesMap.merge(key, val, BigDecimal::add);
+        }
+        
         List<DashboardResponse.MonthlyAmountResponse> monthlyExpenses = new ArrayList<>();
         expensesMap.forEach((month, amount) ->
                 monthlyExpenses.add(new DashboardResponse.MonthlyAmountResponse(month, amount)));
@@ -112,8 +126,8 @@ public class DashboardService {
     /** Agrège les lignes [year, month, sum] renvoyées par les requêtes mission. */
     private List<DashboardResponse.MonthlyAmountResponse> aggregateMissionMonthly(List<Object[]> rows) {
         Map<String, BigDecimal> grouped = new LinkedHashMap<>();
-        YearMonth start = YearMonth.now().minusMonths(5);
-        for (int i = 0; i < 6; i++) {
+        YearMonth start = YearMonth.now().minusMonths(11);
+        for (int i = 0; i < 12; i++) {
             grouped.put(start.plusMonths(i).format(MONTH_FORMAT), BigDecimal.ZERO);
         }
         for (Object[] row : rows) {

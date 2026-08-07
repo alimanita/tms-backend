@@ -24,6 +24,9 @@ public class MissionMapper {
         mission.setCargoDescription(request.cargoDescription());
         mission.setCargoWeight(request.cargoWeight());
         mission.setNotes(request.notes());
+        if (request.revenue() != null) {
+            mission.setRevenue(request.revenue());
+        }
         return mission;
     }
 
@@ -38,6 +41,9 @@ public class MissionMapper {
         mission.setCargoDescription(request.cargoDescription());
         mission.setCargoWeight(request.cargoWeight());
         mission.setNotes(request.notes());
+        if (request.revenue() != null) {
+            mission.setRevenue(request.revenue());
+        }
     }
 
     public MissionResponse toResponse(Mission mission) {

@@ -25,7 +25,6 @@ public class RapportsApiController {
 
     private final RapportEntretiensService rapportService;
     private final com.transport.tms.repository.fleet.MissionRepository missionRepository;
-    private final com.transport.tms.repository.AmazonPurchaseRepository amazonPurchaseRepository;
     private final com.transport.tms.repository.FinancialEntryRepository financialEntryRepository;
 
     // ── Entretiens / Maintenance ──────────────────────────────────────────────
@@ -105,24 +104,14 @@ public class RapportsApiController {
         return ResponseEntity.ok(dto);
     }
 
-    @GetMapping("/amazon/stats")
-    public ResponseEntity<AmazonStatsDto> getAmazonStats() {
-        AmazonStatsDto dto = new AmazonStatsDto();
-        dto.setExpensesByMonth(convertToBigDecimalMap(amazonPurchaseRepository.sumExpensesByMonth()));
-        dto.setExpensesBySupplier(convertToBigDecimalMap(amazonPurchaseRepository.sumExpensesBySupplier()));
-        return ResponseEntity.ok(dto);
-    }
-
     @GetMapping("/finance/stats")
     public ResponseEntity<FinanceStatsDto> getFinanceStats() {
         FinanceStatsDto dto = new FinanceStatsDto();
         dto.setMonthlyRevenue(convertToBigDecimalMap(missionRepository.sumRevenueByMonth()));
         
         java.util.Map<String, java.math.BigDecimal> combinedExpenses = new java.util.HashMap<>();
-        java.util.Map<String, java.math.BigDecimal> amazonMonth = convertToBigDecimalMap(amazonPurchaseRepository.sumExpensesByMonth());
         java.util.Map<String, java.math.BigDecimal> generalMonth = convertToBigDecimalMap(financialEntryRepository.sumExpensesByMonth());
         
-        amazonMonth.forEach((k, v) -> combinedExpenses.merge(k, v, java.math.BigDecimal::add));
         generalMonth.forEach((k, v) -> combinedExpenses.merge(k, v, java.math.BigDecimal::add));
         
         dto.setMonthlyExpenses(combinedExpenses);

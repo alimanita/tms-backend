@@ -4,7 +4,10 @@
       "route": "/dashboard",
       "name": "Tableau de bord",
       "type": "link",
-      "icon": "dashboard"
+      "icon": "dashboard",
+      "permissions": {
+        "except": ["COMPTABLE"]
+      }
     },
     {
       "route": "/fleet-tracking",
@@ -96,12 +99,6 @@
       },
       "children": [
         {
-          "route": "/amazon-purchases",
-          "name": "Achats Amazon",
-          "type": "link",
-          "icon": "shopping_cart"
-        },
-        {
           "route": "/customers",
           "name": "Clients",
           "type": "link",
@@ -121,7 +118,7 @@
       "type": "sub",
       "icon": "settings",
       "permissions": {
-        "only": ["ADMIN", "SUPERADMIN","SUPER_ADMIN" ]
+        "only": ["ADMIN", "SUPERADMIN","SUPER_ADMIN", "COMPTABLE"]
       },
       "children": [
         {
@@ -131,10 +128,19 @@
           "icon": "account_balance_wallet"
         },
         {
+          "route": "/accountant-dashboard",
+          "name": "Tableau de bord (Comptable)",
+          "type": "link",
+          "icon": "insert_chart"
+        },
+        {
           "route": "/admin",
           "name": "Administration",
           "type": "link",
-          "icon": "admin_panel_settings"
+          "icon": "admin_panel_settings",
+          "permissions": {
+            "except": ["COMPTABLE"]
+          }
         }
       ]
     },

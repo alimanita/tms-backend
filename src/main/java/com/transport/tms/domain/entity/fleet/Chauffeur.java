@@ -82,6 +82,13 @@ public class Chauffeur {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private com.transport.tms.domain.enums.TypeSalaire typeSalaire;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal valeurSalaire;
+
     @Builder.Default
     private Boolean actif = true;
 

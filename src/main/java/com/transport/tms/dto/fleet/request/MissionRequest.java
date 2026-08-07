@@ -38,5 +38,8 @@ public record MissionRequest(
     @DecimalMin(value = "0.0")
     BigDecimal cargoWeight,
 
-    String notes
+    String notes,
+
+    @DecimalMin(value = "0.0")
+    BigDecimal revenue
 ) {}

@@ -36,5 +36,7 @@ public record ChauffeurResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Long idUtilisateur,
-        String utilisateurEmail
+        String utilisateurEmail,
+        com.transport.tms.domain.enums.TypeSalaire typeSalaire,
+        BigDecimal valeurSalaire
 ) {}

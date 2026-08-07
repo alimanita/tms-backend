@@ -283,7 +283,8 @@ public class UtilisateurServiceImpl implements UtilisateurService {
   @Override
   @Transactional(readOnly = true)
   public List<UtilisateurDto> findByRoleAndEntreprise(String role, Long idEntreprise) {
-    return utilisateurRepository.findByRoleAndEntreprise(role, idEntreprise)
+    String normalizedRole = normalizeRoleName(role);
+    return utilisateurRepository.findByRoleAndEntreprise(normalizedRole, idEntreprise)
             .stream()
             .map(UtilisateurDto::fromEntity)
             .collect(Collectors.toList());
