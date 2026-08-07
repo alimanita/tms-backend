@@ -13,7 +13,10 @@
       "route": "/fleet-tracking",
       "name": "Suivi temps réel",
       "type": "link",
-      "icon": "sensors"
+      "icon": "sensors",
+      "permissions": {
+        "except": ["COMPTABLE"]
+      }
     },
     {
       "route": "fleet",
@@ -25,16 +28,18 @@
           "route": "/fleet/vehicules",
           "name": "Véhicules",
           "type": "link",
-          "icon": "directions_car"
-        }
-        ,
+          "icon": "directions_car",
+          "permissions": {
+            "except": ["MECANICIEN", "COMPTABLE"]
+          }
+        },
         {
           "route": "/fleet/chauffeurs",
           "name": "Chauffeurs",
           "type": "link",
           "icon": "badge",
           "permissions": {
-            "except": ["MECANICIEN", "CHAUFFEUR"]
+            "except": ["MECANICIEN", "CHAUFFEUR", "COMPTABLE"]
           }
         },
         {
@@ -52,14 +57,17 @@
           "type": "link",
           "icon": "alt_route",
           "permissions": {
-            "except": ["MECANICIEN"]
+            "except": ["MECANICIEN", "COMPTABLE"]
           }
         },
         {
           "route": "/fleet/maintenances",
           "name": "Entretien & Vidanges",
           "type": "link",
-          "icon": "build"
+          "icon": "build",
+          "permissions": {
+            "except": ["COMPTABLE"]
+          }
         },
         {
           "route": "/fleet/pieces-rechange",
@@ -67,25 +75,32 @@
           "type": "link",
           "icon": "extension"
         },
-
-
         {
           "route": "/fleet/changement-huile",
           "name": "Changement Huile",
           "type": "link",
-          "icon": "oil_barrel"
+          "icon": "oil_barrel",
+          "permissions": {
+            "except": ["COMPTABLE"]
+          }
         },
         {
           "route": "/fleet/documents",
           "name": "Documents Flotte",
           "type": "link",
-          "icon": "description"
+          "icon": "description",
+          "permissions": {
+            "except": ["COMPTABLE"]
+          }
         },
         {
           "route": "/fleet/notifications",
           "name": "Notifications",
           "type": "link",
-          "icon": "notifications"
+          "icon": "notifications",
+          "permissions": {
+            "except": ["COMPTABLE"]
+          }
         }
       ]
     },
@@ -95,7 +110,7 @@
       "type": "sub",
       "icon": "storefront",
       "permissions": {
-        "except": ["CHAUFFEUR", "MECANICIEN"]
+        "except": ["CHAUFFEUR", "MECANICIEN", "COMPTABLE"]
       },
       "children": [
         {
@@ -118,9 +133,15 @@
       "type": "sub",
       "icon": "settings",
       "permissions": {
-        "only": ["ADMIN", "SUPERADMIN","SUPER_ADMIN", "COMPTABLE"]
+        "only": ["ADMIN", "SUPERADMIN", "SUPER_ADMIN", "COMPTABLE"]
       },
       "children": [
+        {
+          "route": "/accountant-dashboard",
+          "name": "Tableau de bord",
+          "type": "link",
+          "icon": "insert_chart"
+        },
         {
           "route": "/finance",
           "name": "Comptabilité",
@@ -128,10 +149,13 @@
           "icon": "account_balance_wallet"
         },
         {
-          "route": "/accountant-dashboard",
-          "name": "Tableau de bord (Comptable)",
+          "route": "/fleet/chauffeurs",
+          "name": "Fiches de paie chauffeurs",
           "type": "link",
-          "icon": "insert_chart"
+          "icon": "receipt",
+          "permissions": {
+            "only": ["COMPTABLE", "ADMIN", "SUPERADMIN", "SUPER_ADMIN"]
+          }
         },
         {
           "route": "/admin",
@@ -146,7 +170,7 @@
     },
     {
       "route": "reports",
-      "name": "reports",
+      "name": "Rapports",
       "type": "link",
       "icon": "assessment",
       "permissions": {
