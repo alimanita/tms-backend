@@ -3,9 +3,11 @@ package com.transport.tms.service.fleet;
 import com.transport.tms.domain.entity.fleet.Chauffeur;
 import com.transport.tms.domain.entity.fleet.FichePaie;
 import com.transport.tms.domain.entity.fleet.Mission;
+import com.transport.tms.domain.entity.fleet.DocumentFlotte;
 import com.transport.tms.repository.fleet.ChauffeurRepository;
 import com.transport.tms.repository.fleet.FichePaieRepository;
 import com.transport.tms.repository.fleet.MissionRepository;
+import com.transport.tms.repository.fleet.DocumentFlotteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,44 @@ public class FichePaieService {
     private final ChauffeurRepository chauffeurRepository;
     private final MissionRepository missionRepository;
     private final FileStorageService fileStorageService;
+    private final DocumentFlotteRepository documentFlotteRepository;
+
+    @Transactional
+    public FichePaie uploadManual(Long chauffeurId, String moisAnnee, MultipartFile file) {
+        Chauffeur chauffeur = chauffeurRepository.findById(chauffeurId)
+                .orElseThrow(() -> new IllegalArgumentException("Chauffeur non trouvé"));
+
+        Optional<FichePaie> existing = fichePaieRepository.findByChauffeurIdAndMoisAnnee(chauffeurId, moisAnnee);
+        FichePaie fichePaie = existing.orElse(new FichePaie());
+        
+        fichePaie.setChauffeur(chauffeur);
+        fichePaie.setMoisAnnee(moisAnnee);
+        if (fichePaie.getMontantCalcule() == null) {
+            fichePaie.setMontantCalcule(BigDecimal.ZERO);
+        }
+
+        if (fichePaie.getUrlDocument() != null) {
+            fileStorageService.delete(fichePaie.getUrlDocument(), "payslips");
+        }
+        
+        String filename = fileStorageService.store(file, "payslips");
+        fichePaie.setUrlDocument(filename);
+        FichePaie saved = fichePaieRepository.save(fichePaie);
+
+        DocumentFlotte doc = new DocumentFlotte();
+        doc.setEntityType(DocumentFlotte.TypeEntite.DRIVER);
+        doc.setEntityId(chauffeur.getId());
+        doc.setTypeDocument(com.transport.tms.domain.enums.TypeDocument.OTHER);
+        doc.setReferenceNumber("Fiche de paie - " + moisAnnee);
+        doc.setIssuer("Entreprise");
+        doc.setIssueDate(java.time.LocalDate.now());
+        doc.setFilePath(filename);
+        doc.setFileName(file.getOriginalFilename());
+        doc.setStatus(DocumentFlotte.StatutDocument.ACTIVE);
+        documentFlotteRepository.save(doc);
+
+        return saved;
+    }
 
     @Transactional
     public FichePaie calculerEtGenerer(Long chauffeurId, String moisAnnee) {

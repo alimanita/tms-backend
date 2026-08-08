@@ -32,11 +32,11 @@ public interface UtilisateurApi {
   @GetMapping(UTILISATEUR_ENDPOINT + "/by-role")
   @Operation(
           summary = "Lister les utilisateurs par rôle",
-          description = "Retourne les utilisateurs de l'entreprise ayant le rôle spécifié"
+          description = "Retourne les utilisateurs ayant le rôle spécifié"
   )
   List<UtilisateurDto> findByRole(
           @RequestParam("role") String role,
-          @RequestParam("idEntreprise") Long idEntreprise
+          @RequestParam(value = "idEntreprise", required = false) Long idEntreprise
   );
   @GetMapping(UTILISATEUR_ENDPOINT + "/{idUtilisateur}")
   UtilisateurDto findById(@PathVariable("idUtilisateur") Long id);

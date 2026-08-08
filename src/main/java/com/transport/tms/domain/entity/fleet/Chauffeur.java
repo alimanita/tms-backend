@@ -105,9 +105,12 @@ public class Chauffeur {
 
     @LastModifiedBy
     private Long updatedBy;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_utilisateur", unique = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Utilisateur utilisateur;
+    
     // ── Méthodes métier ────────────────────────────────────────
 
     public boolean isPermisValide() {

@@ -291,6 +291,16 @@ public class UtilisateurServiceImpl implements UtilisateurService {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public List<UtilisateurDto> findByRole(String role) {
+    String normalizedRole = normalizeRoleName(role);
+    return utilisateurRepository.findByRole(normalizedRole)
+            .stream()
+            .map(UtilisateurDto::fromEntity)
+            .collect(Collectors.toList());
+  }
+
+  @Override
   public UtilisateurDto findById(Long id) {
     log.info("🔍 Recherche utilisateur par ID: {}", id);
 

@@ -21,8 +21,8 @@ public interface MissionService {
    // MissionResponse soumettre(Long id);
     //MissionResponse approuver(Long id);
     //MissionResponse rejeter(Long id, String motif);
-    MissionResponse demarrer(Long id);
-    MissionResponse cloturer(Long id);
+    MissionResponse demarrer(Long id, java.math.BigDecimal mileageAtDeparture);
+    MissionResponse cloturer(Long id, java.math.BigDecimal mileageAtReturn);
     MissionResponse annuler(Long id, String motif);
     DepenseMissionResponse addDepense(Long id, DepenseMissionRequest request, org.springframework.web.multipart.MultipartFile receipt);
     List<DepenseMissionResponse> findDepenses(Long id);

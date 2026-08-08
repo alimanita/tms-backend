@@ -176,9 +176,16 @@ public class MissionServiceImpl implements MissionService {
 
 
     @Override
-    public MissionResponse demarrer(Long id) {
+    public MissionResponse demarrer(Long id, java.math.BigDecimal mileageAtDeparture) {
         Mission mission = findEntityById(id);
-        mission.demarrer(); // plus de paramètre
+        mission.demarrer();
+
+        // Enregistrer le kilométrage de départ si fourni
+        if (mileageAtDeparture != null) {
+            mission.setMileageAtDeparture(mileageAtDeparture);
+            // Mettre à jour aussi le kilométrage actuel du véhicule
+            mission.getVehicule().setKilometrageActuel(mileageAtDeparture);
+        }
 
         Vehicule vehicule = mission.getVehicule();
         vehicule.setStatut(StatutVehicule.EN_MISSION);
@@ -188,15 +195,23 @@ public class MissionServiceImpl implements MissionService {
         chauffeur.setStatut(StatutChauffeur.EN_MISSION);
         chauffeurRepository.save(chauffeur);
 
-        log.info("Mission {} démarrée — Véhicule {} en mission", mission.getReference(),
-                vehicule.getReference());
+        log.info("Mission {} démarrée — Véhicule {} en mission (km départ: {})",
+                mission.getReference(), vehicule.getReference(), mileageAtDeparture);
         return mapper.toResponse(missionRepository.save(mission));
     }
 
     @Override
-    public MissionResponse cloturer(Long id) {
+    public MissionResponse cloturer(Long id, java.math.BigDecimal mileageAtReturn) {
         Mission mission = findEntityById(id);
-        mission.cloturer(); // plus de paramètre
+
+        // Enregistrer le kilométrage de retour si fourni
+        if (mileageAtReturn != null) {
+            mission.setMileageAtReturn(mileageAtReturn);
+            // Mettre à jour le kilométrage actuel du véhicule
+            mission.getVehicule().setKilometrageActuel(mileageAtReturn);
+        }
+
+        mission.cloturer();
 
         Vehicule vehicule = mission.getVehicule();
         vehicule.setStatut(StatutVehicule.DISPONIBLE);
@@ -206,7 +221,7 @@ public class MissionServiceImpl implements MissionService {
         chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
         chauffeurRepository.save(chauffeur);
 
-        log.info("Mission {} clôturée", mission.getReference());
+        log.info("Mission {} clôturée (km retour: {})", mission.getReference(), mileageAtReturn);
         return mapper.toResponse(missionRepository.save(mission));
     }
 

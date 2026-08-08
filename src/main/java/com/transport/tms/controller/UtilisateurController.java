@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Collections;
 import java.util.List;
 
 @CrossOrigin(origins = "*")
@@ -33,7 +34,18 @@ public class UtilisateurController implements UtilisateurApi {
   }
   @Override
   public List<UtilisateurDto> findByRole(String role, Long idEntreprise) {
-
+    if (idEntreprise == null || idEntreprise == 0) {
+      // Récupérer l'entreprise de l'utilisateur connecté
+      String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+      try {
+        UtilisateurDto currentUser = utilisateurService.findByEmail(currentUserEmail);
+        if (currentUser != null && currentUser.getEntreprise() != null && currentUser.getEntreprise().getId() != null) {
+          return utilisateurService.findByRoleAndEntreprise(role, currentUser.getEntreprise().getId());
+        }
+      } catch (Exception ignored) {}
+      // Fallback : chercher dans toutes les entreprises si l'utilisateur connecté n'a pas d'entreprise (ex: super admin)
+      return utilisateurService.findByRole(role);
+    }
     return utilisateurService.findByRoleAndEntreprise(role, idEntreprise);
   }
   @Override

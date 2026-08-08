@@ -13,6 +13,8 @@ public interface UtilisateurService {
 
   List<UtilisateurDto> findByRoleAndEntreprise(String role, Long idEntreprise);
 
+  List<UtilisateurDto> findByRole(String role);
+
   UtilisateurDto findById(Long id);
 
   UtilisateurDto findByEmail(String email);

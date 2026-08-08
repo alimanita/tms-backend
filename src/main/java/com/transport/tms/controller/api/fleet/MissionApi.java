@@ -42,10 +42,12 @@ public interface MissionApi {
  */
 
     @PatchMapping("/{id}/demarrer")
-    ResponseEntity<MissionResponse> demarrer(@PathVariable Long id);
+    ResponseEntity<MissionResponse> demarrer(@PathVariable Long id,
+                                             @RequestParam(required = false) java.math.BigDecimal mileageAtDeparture);
 
     @PatchMapping("/{id}/cloturer")
-    ResponseEntity<MissionResponse> cloturer(@PathVariable Long id);
+    ResponseEntity<MissionResponse> cloturer(@PathVariable Long id,
+                                             @RequestParam(required = false) java.math.BigDecimal mileageAtReturn);
 
     @PatchMapping("/{id}/annuler")
     ResponseEntity<MissionResponse> annuler(@PathVariable Long id,

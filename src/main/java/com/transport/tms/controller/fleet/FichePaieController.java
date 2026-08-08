@@ -24,6 +24,14 @@ public class FichePaieController {
         return ResponseEntity.ok(fichePaieService.calculerEtGenerer(chauffeurId, moisAnnee));
     }
 
+    @PostMapping("/upload-manuel")
+    public ResponseEntity<FichePaie> uploadManual(
+            @RequestParam Long chauffeurId,
+            @RequestParam String moisAnnee,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(fichePaieService.uploadManual(chauffeurId, moisAnnee, file));
+    }
+
     @PostMapping("/{id}/upload")
     public ResponseEntity<FichePaie> uploadDocument(
             @PathVariable Long id,

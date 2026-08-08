@@ -60,13 +60,15 @@ public class MissionController implements MissionApi {
     }*/
 
     @Override
-    public ResponseEntity<MissionResponse> demarrer(Long id  ) {
-        return ResponseEntity.ok(missionService.demarrer(id));
+    public ResponseEntity<MissionResponse> demarrer(Long id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) java.math.BigDecimal mileageAtDeparture) {
+        return ResponseEntity.ok(missionService.demarrer(id, mileageAtDeparture));
     }
 
     @Override
-    public ResponseEntity<MissionResponse> cloturer(Long id) {
-        return ResponseEntity.ok(missionService.cloturer(id));
+    public ResponseEntity<MissionResponse> cloturer(Long id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) java.math.BigDecimal mileageAtReturn) {
+        return ResponseEntity.ok(missionService.cloturer(id, mileageAtReturn));
     }
 
     @Override

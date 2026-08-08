@@ -24,10 +24,21 @@ public interface UtilisateurRepository extends JpaRepository<Utilisateur, Long> 
   @Query("""
         SELECT DISTINCT u FROM Utilisateur u
         JOIN u.roles r
-        WHERE r.roleName = :role
+        WHERE (r.roleName = :role
+        OR r.roleName = CONCAT('ROLE_', :role)
+        OR r.roleName = SUBSTRING(:role, 6))
         AND u.entreprise.id = :idEntreprise
         """)
   List<Utilisateur> findByRoleAndEntreprise(@Param("role") String role, @Param("idEntreprise") Long idEntreprise);
+
+  @Query("""
+        SELECT DISTINCT u FROM Utilisateur u
+        JOIN u.roles r
+        WHERE (r.roleName = :role
+        OR r.roleName = CONCAT('ROLE_', :role)
+        OR r.roleName = SUBSTRING(:role, 6))
+        """)
+  List<Utilisateur> findByRole(@Param("role") String role);
 
   @Query("""
             SELECT DISTINCT u.id FROM Utilisateur u
