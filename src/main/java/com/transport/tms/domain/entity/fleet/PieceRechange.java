@@ -48,6 +48,23 @@ public class PieceRechange {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    // --- Champs TVA ajoutés ---
+    @Column(name = "amount_ht", precision = 15, scale = 2)
+    private BigDecimal amountHT;
+
+    @Column(name = "tva_rate", precision = 5, scale = 2)
+    private BigDecimal tvaRate;
+
+    @Column(name = "tva_amount", precision = 15, scale = 2)
+    private BigDecimal tvaAmount;
+
+    @Column(name = "is_tva_recoverable")
+    private Boolean isTvaRecoverable = false;
+
+    @Column(name = "recoverable_tva_amount", precision = 15, scale = 2)
+    private BigDecimal recoverableTvaAmount;
+    // --------------------------
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

@@ -10,6 +10,15 @@
       }
     },
     {
+      "route": "/accountant-dashboard",
+      "name": "Tableau de bord",
+      "type": "link",
+      "icon": "insert_chart",
+      "permissions": {
+        "only": ["COMPTABLE"]
+      }
+    },
+    {
       "route": "/fleet-tracking",
       "name": "Suivi temps réel",
       "type": "link",
@@ -76,6 +85,15 @@
           "icon": "extension"
         },
         {
+          "route": "/fleet/chauffeurs",
+          "name": "Fiches de paie chauffeurs",
+          "type": "link",
+          "icon": "receipt",
+          "permissions": {
+            "only": ["COMPTABLE", "ADMIN", "SUPERADMIN", "SUPER_ADMIN"]
+          }
+        },
+        {
           "route": "/fleet/changement-huile",
           "name": "Changement Huile",
           "type": "link",
@@ -133,7 +151,7 @@
       "type": "sub",
       "icon": "settings",
       "permissions": {
-        "only": ["ADMIN", "SUPERADMIN", "SUPER_ADMIN", "COMPTABLE"]
+        "only": ["ADMIN", "SUPERADMIN", "SUPER_ADMIN"]
       },
       "children": [
         {
@@ -147,15 +165,6 @@
           "name": "Comptabilité",
           "type": "link",
           "icon": "account_balance_wallet"
-        },
-        {
-          "route": "/fleet/chauffeurs",
-          "name": "Fiches de paie chauffeurs",
-          "type": "link",
-          "icon": "receipt",
-          "permissions": {
-            "only": ["COMPTABLE", "ADMIN", "SUPERADMIN", "SUPER_ADMIN"]
-          }
         },
         {
           "route": "/admin",

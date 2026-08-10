@@ -23,5 +23,12 @@ public record PleinCarburantResponse(
         String receiptNumber,
         String notes,
         String proofUrl,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        BigDecimal amountHT,
+        BigDecimal amountTTC,
+        BigDecimal tvaRate,
+        BigDecimal tvaAmount,
+        Boolean isTvaRecoverable,
+        BigDecimal recoverableTvaAmount,
+        BigDecimal acciseAmount
 ) {}

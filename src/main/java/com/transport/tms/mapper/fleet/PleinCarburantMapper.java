@@ -20,6 +20,13 @@ public class PleinCarburantMapper {
         plein.setIsFullTank(request.isFullTank() != null ? request.isFullTank() : true);
         plein.setReceiptNumber(request.receiptNumber());
         plein.setNotes(request.notes());
+        plein.setAmountHT(request.amountHT());
+        plein.setAmountTTC(request.amountTTC());
+        plein.setTvaRate(request.tvaRate());
+        plein.setTvaAmount(request.tvaAmount());
+        plein.setIsTvaRecoverable(request.isTvaRecoverable() != null ? request.isTvaRecoverable() : false);
+        plein.setRecoverableTvaAmount(request.recoverableTvaAmount());
+        plein.setAcciseAmount(request.acciseAmount());
         plein.calculerConsommation();
         return plein;
     }
@@ -55,7 +62,14 @@ public class PleinCarburantMapper {
                 plein.getReceiptNumber(),
                 plein.getNotes(),
                 proofUrl,
-                plein.getCreatedAt()
+                plein.getCreatedAt(),
+                plein.getAmountHT(),
+                plein.getAmountTTC(),
+                plein.getTvaRate(),
+                plein.getTvaAmount(),
+                plein.getIsTvaRecoverable(),
+                plein.getRecoverableTvaAmount(),
+                plein.getAcciseAmount()
         );
     }
 }

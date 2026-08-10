@@ -6,6 +6,7 @@ public enum TypeDocument {
     TECHNICAL_CONTROL,  // Visite technique
     PERMIT,             // Autorisation / permis
     CONTRACT,           // Contrat
+    PAYSLIP,            // Fiche de paie
     OTHER;
 
     // Jours d'alerte par défaut avant expiration

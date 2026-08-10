@@ -64,6 +64,27 @@ public class PleinCarburant {
     @Column(name = "receipt_number", length = 100)
     private String receiptNumber;
 
+    @Column(name = "amount_ht", precision = 12, scale = 3)
+    private BigDecimal amountHT;
+
+    @Column(name = "amount_ttc", precision = 12, scale = 3)
+    private BigDecimal amountTTC;
+
+    @Column(name = "tva_rate", precision = 5, scale = 2)
+    private BigDecimal tvaRate;
+
+    @Column(name = "tva_amount", precision = 12, scale = 3)
+    private BigDecimal tvaAmount;
+
+    @Column(name = "is_tva_recoverable")
+    private Boolean isTvaRecoverable = false;
+
+    @Column(name = "recoverable_tva_amount", precision = 12, scale = 3)
+    private BigDecimal recoverableTvaAmount;
+
+    @Column(name = "accise_amount", precision = 12, scale = 3)
+    private BigDecimal acciseAmount;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
     @Column(name = "proof_file_path", length = 255)
@@ -77,6 +98,7 @@ public class PleinCarburant {
     private LocalDateTime createdAt;
 
     public BigDecimal getTotalAmount() {
+        if (amountTTC != null) return amountTTC;
         if (quantityLiters == null || pricePerLiter == null) return BigDecimal.ZERO;
         return quantityLiters.multiply(pricePerLiter);
     }

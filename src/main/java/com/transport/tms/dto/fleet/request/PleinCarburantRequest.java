@@ -36,5 +36,13 @@ public record PleinCarburantRequest(
 
     String receiptNumber,
 
-    String notes
+    String notes,
+
+    BigDecimal amountHT,
+    BigDecimal amountTTC,
+    BigDecimal tvaRate,
+    BigDecimal tvaAmount,
+    Boolean isTvaRecoverable,
+    BigDecimal recoverableTvaAmount,
+    BigDecimal acciseAmount
 ) {}
