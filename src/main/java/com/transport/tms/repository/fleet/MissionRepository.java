@@ -145,5 +145,76 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
         """)
     List<Object[]> sumCostByYearMonth(@Param("fromDate") LocalDateTime fromDate);
 
+    // ── RAPPORT CHAUFFEUR : revenus & coûts par mois pour un chauffeur ─────────
+    @Query("""
+        SELECT EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn),
+               COALESCE(SUM(m.revenue), 0), COALESCE(SUM(m.totalCost), 0), COUNT(m)
+        FROM Mission m
+        WHERE m.statut = 'COMPLETED'
+        AND m.actualReturn IS NOT NULL
+        AND (:chauffeurId IS NULL OR m.chauffeur.id = :chauffeurId)
+        AND m.actualReturn BETWEEN :debut AND :fin
+        GROUP BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
+        ORDER BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
+        """)
+    List<Object[]> statsChauffeurParMois(
+            @Param("chauffeurId") Long chauffeurId,
+            @Param("debut") LocalDateTime debut,
+            @Param("fin") LocalDateTime fin);
 
-}
+    // ── NOUVEAU RAPPORT CHAUFFEUR (Période Unique) ─────────────────────────────
+    @Query("""
+        SELECT c.id, c.nom, c.prenom, c.valeurSalaire, c.typeSalaire,
+               COALESCE(SUM(m.revenue), 0), COALESCE(SUM(m.totalCost), 0), COUNT(m)
+        FROM Mission m
+        JOIN m.chauffeur c
+        WHERE m.statut = 'COMPLETED'
+        AND m.actualReturn IS NOT NULL
+        AND m.actualReturn BETWEEN :debut AND :fin
+        GROUP BY c.id, c.nom, c.prenom, c.valeurSalaire, c.typeSalaire
+        ORDER BY c.nom ASC
+        """)
+    List<Object[]> statsTousChauffeursSurPeriode(
+            @Param("debut") LocalDateTime debut,
+            @Param("fin") LocalDateTime fin);
+
+    @Query("""
+        SELECT m.id, m.reference, m.actualReturn, m.revenue, m.totalCost
+        FROM Mission m
+        WHERE m.statut = 'COMPLETED'
+        AND m.actualReturn IS NOT NULL
+        AND m.chauffeur.id = :chauffeurId
+        AND m.actualReturn BETWEEN :debut AND :fin
+        ORDER BY m.actualReturn DESC
+        """)
+    List<Object[]> missionsChauffeurSurPeriode(
+            @Param("chauffeurId") Long chauffeurId,
+            @Param("debut") LocalDateTime debut,
+            @Param("fin") LocalDateTime fin);
+
+    // ── RAPPORT AMAZON filtré par période : revenus par mois ──────────────────
+    @Query("""
+        SELECT EXTRACT(MONTH FROM m.actualReturn), COALESCE(SUM(m.revenue), 0)
+        FROM Mission m
+        WHERE m.statut = 'COMPLETED' AND m.actualReturn IS NOT NULL
+        AND m.actualReturn BETWEEN :debut AND :fin
+        GROUP BY EXTRACT(MONTH FROM m.actualReturn)
+        ORDER BY EXTRACT(MONTH FROM m.actualReturn)
+        """)
+    List<Object[]> sumRevenueByMonthBetween(
+            @Param("debut") LocalDateTime debut,
+            @Param("fin") LocalDateTime fin);
+
+    @Query("""
+        SELECT EXTRACT(YEAR FROM m.actualReturn), COALESCE(SUM(m.revenue), 0)
+        FROM Mission m
+        WHERE m.statut = 'COMPLETED' AND m.actualReturn IS NOT NULL
+        AND EXTRACT(YEAR FROM m.actualReturn) BETWEEN :anDebut AND :anFin
+        GROUP BY EXTRACT(YEAR FROM m.actualReturn)
+        ORDER BY EXTRACT(YEAR FROM m.actualReturn)
+        """)
+    List<Object[]> sumRevenueByYearBetween(
+            @Param("anDebut") int anDebut,
+            @Param("anFin") int anFin);
+
+}
