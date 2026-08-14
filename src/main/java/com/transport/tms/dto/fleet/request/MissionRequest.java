@@ -26,7 +26,7 @@ public record MissionRequest(
     String arrivalLocation,
 
     @NotNull(message = "La date de départ planifiée est obligatoire")
-    @Future(message = "La date de départ doit être dans le futur")
+
     LocalDateTime plannedDeparture,
 
     LocalDateTime plannedReturn,
