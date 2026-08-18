@@ -22,12 +22,13 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ProblemDetail handleNotFound(ResourceNotFoundException ex) {
+    @ExceptionHandler({ResourceNotFoundException.class, jakarta.persistence.EntityNotFoundException.class})
+    public ProblemDetail handleNotFound(Exception ex) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
         problem.setTitle("Resource not found");
         problem.setDetail(ex.getMessage());
-        problem.setProperty("code", ex.getCode());
+        String code = ex instanceof ResourceNotFoundException ? ((ResourceNotFoundException) ex).getCode() : "NOT_FOUND";
+        problem.setProperty("code", code);
         return problem;
     }
 
@@ -40,6 +41,15 @@ public class GlobalExceptionHandler {
         if (ex.getDetails() != null) {
             problem.setProperty("details", ex.getDetails());
         }
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidOperationException.class)
+    public ProblemDetail handleInvalidOperation(InvalidOperationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Invalid Operation");
+        problem.setDetail(ex.getMessage());
+        problem.setProperty("code", ex.getErrorCode() != null ? ex.getErrorCode().toString() : "INVALID_OPERATION");
         return problem;
     }
 
