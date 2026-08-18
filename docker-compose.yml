@@ -26,6 +26,8 @@ services:
       - "8090:8090"
     env_file:
       - .env
+    volumes:
+      - tms_uploads_data:/app/uploads
     networks:
       - tms-network
 
