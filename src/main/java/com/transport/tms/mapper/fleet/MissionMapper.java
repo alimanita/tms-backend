@@ -99,6 +99,13 @@ public class MissionMapper {
         depense.setIsReimbursable(request.isReimbursable() != null
                 ? request.isReimbursable()
                 : true);
+        
+        // Champs TVA
+        depense.setAmountHT(request.amountHT());
+        depense.setTvaRate(request.tvaRate());
+        depense.setTvaAmount(request.tvaAmount());
+        depense.setIsTvaRecoverable(request.isTvaRecoverable() != null ? request.isTvaRecoverable() : false);
+        
         return depense;
     }
 
@@ -114,6 +121,10 @@ public class MissionMapper {
                 depense.getDescription(),
                 depense.getReceiptPath(),
                 depense.getIsReimbursable(),
+                depense.getAmountHT(),
+                depense.getTvaRate(),
+                depense.getTvaAmount(),
+                depense.getIsTvaRecoverable(),
                 depense.getCreatedAt()
         );
     }

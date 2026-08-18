@@ -32,5 +32,11 @@ public record PieceRechangeRequest(
 
     Long stockItemId,
 
-    String location
+    String location,
+
+    BigDecimal amountHT,
+    BigDecimal tvaRate,
+    BigDecimal tvaAmount,
+    Boolean isTvaRecoverable,
+    BigDecimal recoverableTvaAmount
 ) {}

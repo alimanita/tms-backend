@@ -44,6 +44,7 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
     private final PleinCarburantMapper mapper;
     private final FileStorageService fileStorageService;
     private final UtilisateurRepository utilisateurRepository;
+    private final com.transport.tms.service.fleet.ReceiptOcrService receiptOcrService;
 
 
     @Override
@@ -195,6 +196,11 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
             throw new EntityNotFoundException("Aucun justificatif pour ce plein");
         }
         return fileStorageService.load(plein.getProofFilePath());
+    }
+
+    @Override
+    public com.transport.tms.dto.fleet.response.OcrFuelResult extractFuelData(MultipartFile proof) {
+        return receiptOcrService.extractFuelData(proof);
     }
 
 

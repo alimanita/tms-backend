@@ -37,4 +37,7 @@ public interface PleinCarburantApi {
 
     @GetMapping("/{id}/proof")
     ResponseEntity<Resource> downloadProof(@PathVariable Long id);
+
+    @PostMapping(value = "/extract", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<com.transport.tms.dto.fleet.response.OcrFuelResult> extractFuelData(@RequestPart("proof") MultipartFile proof);
 }

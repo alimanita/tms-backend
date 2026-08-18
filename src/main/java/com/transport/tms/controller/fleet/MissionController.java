@@ -97,6 +97,21 @@ public class MissionController implements MissionApi {
     }
 
     @Override
+    public ResponseEntity<org.springframework.core.io.Resource> downloadDepenseReceipt(Long id, Long depenseId) {
+        org.springframework.core.io.Resource file = missionService.getDepenseReceipt(id, depenseId);
+        String contentType = "application/octet-stream";
+        try {
+            contentType = java.nio.file.Files.probeContentType(java.nio.file.Paths.get(file.getURI()));
+        } catch (java.io.IOException ex) {
+            // Ignorer
+        }
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType != null ? contentType : "application/octet-stream"))
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFilename() + "\"")
+                .body(file);
+    }
+
+    @Override
     public ResponseEntity<List<MissionResponse>> findByVehicule(Long vehiculeId) {
         return ResponseEntity.ok(missionService.findByVehicule(vehiculeId));
     }
@@ -113,5 +128,10 @@ public class MissionController implements MissionApi {
     @Override
     public ResponseEntity<List<MissionResponse>> findMesMissions() {
         return ResponseEntity.ok(missionService.findMesMissions());
+    }
+
+    @Override
+    public ResponseEntity<Page<DepenseMissionResponse>> findAllTolls(Pageable pageable) {
+        return ResponseEntity.ok(missionService.findAllTolls(pageable));
     }
 }

@@ -27,6 +27,7 @@ public class PieceRechangeServiceImpl implements PieceRechangeService {
 
     private final PieceRechangeRepository pieceRepository;
     private final PieceRechangeMapper mapper;
+    private final com.transport.tms.service.fleet.FileStorageService fileStorageService;
 
     @Override
     public PieceRechangeResponse create(PieceRechangeRequest request) {
@@ -88,5 +89,25 @@ public class PieceRechangeServiceImpl implements PieceRechangeService {
         return pieceRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Pièce de rechange introuvable avec l'ID = " + id));
+    }
+
+    @Override
+    public PieceRechangeResponse uploadProofFile(Long id, org.springframework.web.multipart.MultipartFile file) {
+        PieceRechange piece = findEntityById(id);
+        if (file != null && !file.isEmpty()) {
+            piece.setReceiptPath(fileStorageService.store(file));
+            pieceRepository.save(piece);
+        }
+        return mapper.toResponse(piece);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public org.springframework.core.io.Resource getProofFile(Long id) {
+        PieceRechange piece = findEntityById(id);
+        if (piece.getReceiptPath() == null) {
+            throw new EntityNotFoundException("Aucun justificatif pour cette pièce");
+        }
+        return fileStorageService.load(piece.getReceiptPath());
     }
 }

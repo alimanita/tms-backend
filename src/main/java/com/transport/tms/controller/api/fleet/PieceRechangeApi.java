@@ -35,4 +35,11 @@ public interface PieceRechangeApi {
     @PatchMapping("/{id}/stock")
     ResponseEntity<PieceRechangeResponse> updateStock(@PathVariable Long id,
                                                       @RequestParam java.math.BigDecimal quantite);
+
+    @PostMapping(value = "/{id}/proof", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<PieceRechangeResponse> uploadProof(@PathVariable Long id,
+                                                      @RequestParam("file") org.springframework.web.multipart.MultipartFile file);
+
+    @GetMapping("/{id}/proof")
+    ResponseEntity<org.springframework.core.io.Resource> getProofFile(@PathVariable Long id);
 }

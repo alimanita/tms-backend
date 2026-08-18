@@ -36,5 +36,11 @@ public record DepenseMissionRequest(
     BigDecimal mileageBefore,
     BigDecimal mileageAfter,
     Boolean isFullTank,
-    String receiptNumber
+    String receiptNumber,
+
+    // Nouveaux champs pour la TVA et les factures (Péage, etc.)
+    BigDecimal amountHT,
+    BigDecimal tvaRate,
+    BigDecimal tvaAmount,
+    Boolean isTvaRecoverable
 ) {}

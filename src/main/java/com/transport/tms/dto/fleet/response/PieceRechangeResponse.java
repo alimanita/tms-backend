@@ -15,5 +15,11 @@ public record PieceRechangeResponse(
     Boolean isLowStock,
     String location,
     Boolean isActive,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    BigDecimal amountHT,
+    BigDecimal tvaRate,
+    BigDecimal tvaAmount,
+    Boolean isTvaRecoverable,
+    BigDecimal recoverableTvaAmount,
+    String receiptPath
 ) {}

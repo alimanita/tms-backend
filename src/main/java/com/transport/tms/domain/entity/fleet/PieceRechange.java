@@ -63,6 +63,9 @@ public class PieceRechange {
 
     @Column(name = "recoverable_tva_amount", precision = 15, scale = 2)
     private BigDecimal recoverableTvaAmount;
+    
+    @Column(name = "receipt_path", length = 500)
+    private String receiptPath;
     // --------------------------
 
     @CreationTimestamp

@@ -64,6 +64,9 @@ public interface MissionApi {
     @DeleteMapping("/{id}/depenses/{depenseId}")
     ResponseEntity<Void> removeDepense(@PathVariable Long id, @PathVariable Long depenseId);
 
+    @GetMapping("/{id}/depenses/{depenseId}/receipt")
+    ResponseEntity<org.springframework.core.io.Resource> downloadDepenseReceipt(@PathVariable Long id, @PathVariable Long depenseId);
+
     @GetMapping("/vehicule/{vehiculeId}")
     ResponseEntity<List<MissionResponse>> findByVehicule(@PathVariable Long vehiculeId);
 
@@ -74,4 +77,7 @@ public interface MissionApi {
     ResponseEntity<List<MissionResponse>> findEnCours();
     @GetMapping("/mes-missions")
     ResponseEntity<List<MissionResponse>> findMesMissions();
+
+    @GetMapping("/depenses/tolls")
+    ResponseEntity<Page<DepenseMissionResponse>> findAllTolls(Pageable pageable);
 }

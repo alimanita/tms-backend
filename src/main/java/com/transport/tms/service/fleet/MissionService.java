@@ -27,5 +27,7 @@ public interface MissionService {
     DepenseMissionResponse addDepense(Long id, DepenseMissionRequest request, org.springframework.web.multipart.MultipartFile receipt);
     List<DepenseMissionResponse> findDepenses(Long id);
     void removeDepense(Long id, Long depenseId);
+    org.springframework.core.io.Resource getDepenseReceipt(Long id, Long depenseId);
     List<MissionResponse> findMesMissions();
+    Page<DepenseMissionResponse> findAllTolls(Pageable pageable);
 }

@@ -17,4 +17,6 @@ public interface PieceRechangeService {
     List<PieceRechangeResponse> findStockFaible();
     PieceRechangeResponse updateStock(Long id, BigDecimal quantite);
     void delete(Long id);
+    PieceRechangeResponse uploadProofFile(Long id, org.springframework.web.multipart.MultipartFile file);
+    org.springframework.core.io.Resource getProofFile(Long id);
 }

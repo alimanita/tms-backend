@@ -18,5 +18,9 @@ public record DepenseMissionResponse(
     String description,
     String receiptPath,
     Boolean isReimbursable,
+    BigDecimal amountHT,
+    BigDecimal tvaRate,
+    BigDecimal tvaAmount,
+    Boolean isTvaRecoverable,
     LocalDateTime createdAt
 ) {}

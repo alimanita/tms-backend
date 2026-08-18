@@ -57,4 +57,32 @@ public class PieceRechangeController implements PieceRechangeApi {
     public ResponseEntity<PieceRechangeResponse> updateStock(Long id, BigDecimal quantite) {
         return ResponseEntity.ok(pieceRechangeService.updateStock(id, quantite));
     }
+
+    @Override
+    public ResponseEntity<PieceRechangeResponse> uploadProof(Long id, org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(pieceRechangeService.uploadProofFile(id, file));
+    }
+
+    @Override
+    public ResponseEntity<org.springframework.core.io.Resource> getProofFile(Long id) {
+        org.springframework.core.io.Resource resource = pieceRechangeService.getProofFile(id);
+        
+        String contentType = "application/octet-stream";
+        String filename = resource.getFilename();
+        if (filename != null) {
+            String lowerFilename = filename.toLowerCase();
+            if (lowerFilename.endsWith(".pdf")) {
+                contentType = "application/pdf";
+            } else if (lowerFilename.endsWith(".png")) {
+                contentType = "image/png";
+            } else if (lowerFilename.endsWith(".jpg") || lowerFilename.endsWith(".jpeg")) {
+                contentType = "image/jpeg";
+            }
+        }
+        
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, contentType)
+                .body(resource);
+    }
 }

@@ -18,4 +18,5 @@ public interface PleinCarburantService {
     List<PleinCarburantResponse> findByChauffeur(Long chauffeurId);
     void delete(Long id);
     Resource getProofFile(Long id);
+    com.transport.tms.dto.fleet.response.OcrFuelResult extractFuelData(MultipartFile proof);
 }

@@ -322,6 +322,16 @@ public class MissionServiceImpl implements MissionService {
         missionRepository.save(mission);
     }
 
+    @Override
+    public org.springframework.core.io.Resource getDepenseReceipt(Long id, Long depenseId) {
+        DepenseMission depense = depenseMissionRepository.findById(depenseId)
+                .orElseThrow(() -> new EntityNotFoundException("Dépense introuvable"));
+        if (depense.getReceiptPath() == null || depense.getReceiptPath().isBlank()) {
+            throw new EntityNotFoundException("Aucun justificatif attaché à cette dépense");
+        }
+        return fileStorageService.load(depense.getReceiptPath());
+    }
+
     // ── Validations métier ────────────────────────────────────
 
     private void validerDisponibiliteVehicule(Vehicule vehicule) {
@@ -394,5 +404,12 @@ public class MissionServiceImpl implements MissionService {
 
         return missionRepository.findByChauffeurIdOrderByPlannedDepartureDesc(chauffeur.getId())
                 .stream().map(mapper::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<DepenseMissionResponse> findAllTolls(Pageable pageable) {
+        return depenseMissionRepository.findByExpenseTypeOrderByExpenseDateDesc(
+                DepenseMission.TypeDepense.TOLL, pageable).map(mapper::toDepenseResponse);
     }
 }

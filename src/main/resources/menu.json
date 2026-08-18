@@ -61,6 +61,15 @@
           }
         },
         {
+          "route": "/fleet/tolls",
+          "name": "Péages",
+          "type": "link",
+          "icon": "toll",
+          "permissions": {
+            "except": ["MECANICIEN"]
+          }
+        },
+        {
           "route": "/fleet/missions",
           "name": "Missions",
           "type": "link",

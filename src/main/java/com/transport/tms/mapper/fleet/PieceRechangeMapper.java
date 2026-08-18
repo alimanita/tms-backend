@@ -25,6 +25,11 @@ public class PieceRechangeMapper {
         piece.setStockItemId(request.stockItemId());
         piece.setLocation(request.location());
         piece.setIsActive(true);
+        piece.setAmountHT(request.amountHT());
+        piece.setTvaRate(request.tvaRate());
+        piece.setTvaAmount(request.tvaAmount());
+        piece.setIsTvaRecoverable(request.isTvaRecoverable());
+        piece.setRecoverableTvaAmount(request.recoverableTvaAmount());
         return piece;
     }
 
@@ -38,6 +43,11 @@ public class PieceRechangeMapper {
                 : java.math.BigDecimal.ZERO);
         piece.setStockItemId(request.stockItemId());
         piece.setLocation(request.location());
+        piece.setAmountHT(request.amountHT());
+        piece.setTvaRate(request.tvaRate());
+        piece.setTvaAmount(request.tvaAmount());
+        piece.setIsTvaRecoverable(request.isTvaRecoverable());
+        piece.setRecoverableTvaAmount(request.recoverableTvaAmount());
     }
 
     public PieceRechangeResponse toResponse(PieceRechange piece) {
@@ -53,7 +63,13 @@ public class PieceRechangeMapper {
                 piece.isLowStock(),
                 piece.getLocation(),
                 piece.getIsActive(),
-                piece.getCreatedAt()
+                piece.getCreatedAt(),
+                piece.getAmountHT(),
+                piece.getTvaRate(),
+                piece.getTvaAmount(),
+                piece.getIsTvaRecoverable(),
+                piece.getRecoverableTvaAmount(),
+                piece.getReceiptPath()
         );
     }
 }

@@ -81,4 +81,9 @@ public class PleinCarburantController implements PleinCarburantApi {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFilename() + "\"")
                 .body(file);
     }
+
+    @Override
+    public ResponseEntity<com.transport.tms.dto.fleet.response.OcrFuelResult> extractFuelData(MultipartFile proof) {
+        return ResponseEntity.ok(pleinCarburantService.extractFuelData(proof));
+    }
 }

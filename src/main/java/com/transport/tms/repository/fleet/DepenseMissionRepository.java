@@ -19,6 +19,10 @@ public interface DepenseMissionRepository extends JpaRepository<DepenseMission, 
     List<DepenseMission> findByMissionIdAndExpenseType(
             Long missionId, DepenseMission.TypeDepense expenseType);
 
+    org.springframework.data.domain.Page<DepenseMission> findByExpenseTypeOrderByExpenseDateDesc(
+            DepenseMission.TypeDepense expenseType, org.springframework.data.domain.Pageable pageable);
+
+
     // Total dépenses d'une mission
     @Query("""
             SELECT COALESCE(SUM(d.montant), 0)
