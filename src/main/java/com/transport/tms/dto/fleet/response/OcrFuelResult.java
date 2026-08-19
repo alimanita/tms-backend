@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -16,6 +17,6 @@ public class OcrFuelResult {
     private BigDecimal quantityLiters;
     private BigDecimal totalCost;
     private BigDecimal tvaAmount;
-    private LocalDate fillingDate;
+    private LocalDateTime fillingDate;
     private String fuelType;
 }

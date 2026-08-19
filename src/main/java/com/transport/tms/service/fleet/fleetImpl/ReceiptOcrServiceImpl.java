@@ -17,6 +17,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.HashMap;
@@ -29,6 +32,10 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
     @Value("${anthropic.api-key:}")
     private String anthropicApiKey;
+
+    // Nom du modèle externalisé, avec une valeur par défaut à jour (Haiku 4.5, supporte la vision)
+    @Value("${tms.anthropic.model:claude-haiku-4-5-20251001}")
+    private String anthropicModel;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -66,14 +73,14 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
             Map<String, Object> textContent = new HashMap<>();
             textContent.put("type", "text");
-            textContent.put("text", "Extrais les données de ce ticket de carburant. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, sans commentaires, avec exactement ces clés : 'quantityLiters' (nombre), 'totalCost' (nombre), 'tvaAmount' (nombre, 0 si non trouvé), 'fillingDate' (chaîne de caractères au format YYYY-MM-DD), 'fuelType' (chaîne de caractères, ex: 'DIESEL', 'SANS PLOMB').");
+            textContent.put("text", "Extrais les données de ce ticket de carburant. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, sans commentaires, avec exactement ces clés : 'quantityLiters' (nombre), 'totalCost' (nombre), 'tvaAmount' (nombre, 0 si non trouvé), 'fillingDate' (chaîne de caractères au format YYYY-MM-DD), 'fillingTime' (chaîne de caractères au format HH:mm correspondant à l'heure exacte de la transaction indiquée sur le ticket, par exemple dans un champ 'Fecha/Hora' ou 'Date/Heure' ; si aucune heure n'est visible, renvoie '00:00'), 'fuelType' (chaîne de caractères, ex: 'DIESEL', 'SANS PLOMB').");
 
             Map<String, Object> message = new HashMap<>();
             message.put("role", "user");
             message.put("content", List.of(imageContent, textContent));
 
             Map<String, Object> body = new HashMap<>();
-            body.put("model", "claude-3-haiku-20240307");
+            body.put("model", anthropicModel);
             body.put("max_tokens", 1024);
             body.put("messages", List.of(message));
 
@@ -87,20 +94,20 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
             JsonNode rootNode = objectMapper.readTree(response.getBody());
             String assistantReply = rootNode.path("content").get(0).path("text").asText();
-            
+
             // Cleanup response in case Claude added markdown like ```json
             assistantReply = assistantReply.replaceAll("(?s)^```json\\s*", "");
             assistantReply = assistantReply.replaceAll("(?s)\\s*```$", "");
-            
+
             log.info("Anthropic raw response: {}", assistantReply);
 
             JsonNode jsonResult = objectMapper.readTree(assistantReply);
-            
+
             return OcrFuelResult.builder()
                     .quantityLiters(getBigDecimalNode(jsonResult, "quantityLiters"))
                     .totalCost(getBigDecimalNode(jsonResult, "totalCost"))
                     .tvaAmount(getBigDecimalNode(jsonResult, "tvaAmount"))
-                    .fillingDate(getLocalDateNode(jsonResult, "fillingDate"))
+                    .fillingDate(getLocalDateTimeNode(jsonResult, "fillingDate", "fillingTime"))
                     .fuelType(jsonResult.path("fuelType").asText(null))
                     .build();
 
@@ -122,15 +129,40 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
         }
     }
 
-    private LocalDate getLocalDateNode(JsonNode node, String fieldName) {
-        JsonNode field = node.path(fieldName);
-        if (field.isMissingNode() || field.isNull() || field.asText().isEmpty()) {
+    /**
+     * Combine la date et l'heure extraites du ticket en un seul LocalDateTime.
+     * Si l'heure est absente ou invalide, on retombe sur minuit (comportement précédent).
+     */
+    private LocalDateTime getLocalDateTimeNode(JsonNode node, String dateField, String timeField) {
+        JsonNode dateNode = node.path(dateField);
+        if (dateNode.isMissingNode() || dateNode.isNull() || dateNode.asText().isEmpty()) {
             return null;
         }
+
+        LocalDate date;
         try {
-            return LocalDate.parse(field.asText(), DateTimeFormatter.ISO_LOCAL_DATE);
+            date = LocalDate.parse(dateNode.asText(), DateTimeFormatter.ISO_LOCAL_DATE);
         } catch (Exception e) {
+            log.warn("Impossible de parser la date extraite '{}', champ ignoré.", dateNode.asText());
             return null;
         }
+
+        LocalTime time = LocalTime.MIDNIGHT;
+        JsonNode timeNode = node.path(timeField);
+        if (!timeNode.isMissingNode() && !timeNode.isNull() && !timeNode.asText().isEmpty()) {
+            String rawTime = timeNode.asText().trim();
+            try {
+                time = LocalTime.parse(rawTime, DateTimeFormatter.ofPattern("HH:mm"));
+            } catch (Exception e) {
+                try {
+                    // Au cas où le modèle renvoie HH:mm:ss
+                    time = LocalTime.parse(rawTime, DateTimeFormatter.ofPattern("HH:mm:ss"));
+                } catch (Exception ex) {
+                    log.warn("Impossible de parser l'heure extraite '{}', 00:00 utilisé par défaut.", rawTime);
+                }
+            }
+        }
+
+        return LocalDateTime.of(date, time);
     }
 }
