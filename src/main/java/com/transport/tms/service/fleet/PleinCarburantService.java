@@ -12,6 +12,7 @@ import java.util.List;
 
 public interface PleinCarburantService {
     PleinCarburantResponse create(PleinCarburantRequest request, MultipartFile proof);
+    PleinCarburantResponse update(Long id, PleinCarburantRequest request, MultipartFile proof);
     PleinCarburantResponse findById(Long id);
     Page<PleinCarburantResponse> findAll(Pageable pageable);
     List<PleinCarburantResponse> findByVehicule(Long vehiculeId);

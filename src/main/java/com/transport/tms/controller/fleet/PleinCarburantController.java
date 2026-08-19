@@ -45,6 +45,11 @@ public class PleinCarburantController implements PleinCarburantApi {
                 .body(pleinCarburantService.create(request, proof));
     }
 
+    @Override
+    public ResponseEntity<PleinCarburantResponse> update(Long id, PleinCarburantRequest request, MultipartFile proof) {
+        return ResponseEntity.ok(pleinCarburantService.update(id, request, proof));
+    }
+
 
     @Override
     public ResponseEntity<Void> delete(Long id) {

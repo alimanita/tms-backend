@@ -165,4 +165,84 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
         return LocalDateTime.of(date, time);
     }
+
+    @Override
+    public com.transport.tms.dto.fleet.response.OcrTollResult extractTollData(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            throw new InvalidOperationException("L'image fournie est vide ou nulle.");
+        }
+
+        if (anthropicApiKey == null || anthropicApiKey.isEmpty()) {
+            throw new InvalidOperationException("La clé API Anthropic n'est pas configurée.");
+        }
+
+        try {
+            String base64Image = Base64.getEncoder().encodeToString(image.getBytes());
+            String mimeType = image.getContentType();
+            if (mimeType == null || !mimeType.startsWith("image/")) {
+                mimeType = "image/jpeg";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-api-key", anthropicApiKey);
+            headers.set("anthropic-version", "2023-06-01");
+
+            Map<String, Object> source = new HashMap<>();
+            source.put("type", "base64");
+            source.put("media_type", mimeType);
+            source.put("data", base64Image);
+
+            Map<String, Object> imageContent = new HashMap<>();
+            imageContent.put("type", "image");
+            imageContent.put("source", source);
+
+            Map<String, Object> textContent = new HashMap<>();
+            textContent.put("type", "text");
+            textContent.put("text", "Extrais les données de ce ticket de péage. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés : 'amountTTC' (nombre), 'amountHT' (nombre, 0 si non trouvé), 'tvaAmount' (nombre, 0 si non trouvé), 'tvaRate' (nombre, ex: 20.0, 0 si non trouvé), 'receiptDate' (chaîne YYYY-MM-DD), 'receiptTime' (chaîne HH:mm), 'entree' (gare d'entrée, chaîne), 'sortie' (gare de sortie, chaîne), 'receiptNumber' (numéro de reçu/ticket, chaîne), 'operator' (société ex: ASF, VINCI, SANEF, APRR, chaîne).");
+
+            Map<String, Object> message = new HashMap<>();
+            message.put("role", "user");
+            message.put("content", List.of(imageContent, textContent));
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("model", anthropicModel);
+            body.put("max_tokens", 1024);
+            body.put("messages", List.of(message));
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    "https://api.anthropic.com/v1/messages",
+                    requestEntity,
+                    String.class
+            );
+
+            JsonNode rootNode = objectMapper.readTree(response.getBody());
+            String assistantReply = rootNode.path("content").get(0).path("text").asText();
+
+            assistantReply = assistantReply.replaceAll("(?s)^```json\\s*", "");
+            assistantReply = assistantReply.replaceAll("(?s)\\s*```$", "");
+
+            log.info("Anthropic raw response (Toll): {}", assistantReply);
+
+            JsonNode jsonResult = objectMapper.readTree(assistantReply);
+
+            return com.transport.tms.dto.fleet.response.OcrTollResult.builder()
+                    .amountTTC(getBigDecimalNode(jsonResult, "amountTTC"))
+                    .amountHT(getBigDecimalNode(jsonResult, "amountHT"))
+                    .tvaAmount(getBigDecimalNode(jsonResult, "tvaAmount"))
+                    .tvaRate(getBigDecimalNode(jsonResult, "tvaRate"))
+                    .receiptDate(getLocalDateTimeNode(jsonResult, "receiptDate", "receiptTime"))
+                    .entree(jsonResult.path("entree").asText(null))
+                    .sortie(jsonResult.path("sortie").asText(null))
+                    .receiptNumber(jsonResult.path("receiptNumber").asText(null))
+                    .operator(jsonResult.path("operator").asText(null))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Erreur lors de l'extraction OCR via Anthropic (Péage)", e);
+            throw new InvalidOperationException("Erreur lors de l'analyse du ticket de péage: " + e.getMessage());
+        }
+    }
 }

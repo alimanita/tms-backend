@@ -26,6 +26,12 @@ public interface PleinCarburantApi {
             @RequestPart("data") @Valid PleinCarburantRequest request,
             @RequestPart(value = "proof", required = false) MultipartFile proof);
 
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<PleinCarburantResponse> update(
+            @PathVariable Long id,
+            @RequestPart("data") @Valid PleinCarburantRequest request,
+            @RequestPart(value = "proof", required = false) MultipartFile proof);
+
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable Long id);
 

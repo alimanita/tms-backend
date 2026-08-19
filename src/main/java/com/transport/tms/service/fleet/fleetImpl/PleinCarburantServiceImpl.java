@@ -94,6 +94,56 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
         return mapper.toResponse(pleinRepository.save(plein));
     }
 
+    @Override
+    public PleinCarburantResponse update(Long id, PleinCarburantRequest request, MultipartFile proof) {
+        PleinCarburant plein = findEntityById(id);
+
+        Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Véhicule introuvable avec l'ID = " + request.vehiculeId()));
+
+        // Mise à jour des champs métiers
+        plein.setFillingDate(request.fillingDate());
+        plein.setFuelType(request.fuelType());
+        plein.setQuantityLiters(request.quantityLiters());
+        plein.setPricePerLiter(request.pricePerLiter());
+        plein.setMileageBefore(request.mileageBefore());
+        plein.setMileageAfter(request.mileageAfter());
+        plein.setIsFullTank(request.isFullTank() != null ? request.isFullTank() : true);
+        plein.setReceiptNumber(request.receiptNumber());
+        plein.setNotes(request.notes());
+        plein.setAmountHT(request.amountHT());
+        plein.setAmountTTC(request.amountTTC());
+        plein.setTvaRate(request.tvaRate());
+        plein.setTvaAmount(request.tvaAmount());
+        plein.setIsTvaRecoverable(request.isTvaRecoverable() != null ? request.isTvaRecoverable() : false);
+        plein.setRecoverableTvaAmount(request.recoverableTvaAmount());
+        plein.setAcciseAmount(request.acciseAmount());
+        plein.setVehicule(vehicule);
+        plein.calculerConsommation();
+
+        // Chauffeur
+        if (request.chauffeurId() != null) {
+            Chauffeur chauffeur = chauffeurRepository.findById(request.chauffeurId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Chauffeur introuvable avec l'ID = " + request.chauffeurId()));
+            plein.setChauffeur(chauffeur);
+        }
+
+        // Nouveau fichier justificatif fourni → on remplace
+        if (proof != null && !proof.isEmpty()) {
+            plein.setProofFilePath(fileStorageService.store(proof));
+        }
+
+        // Mise à jour kilométrage véhicule si nécessaire
+        if (request.mileageAfter() != null) {
+            vehicule.setKilometrageActuel(request.mileageAfter());
+            vehiculeRepository.save(vehicule);
+        }
+
+        return mapper.toResponse(pleinRepository.save(plein));
+    }
+
     /**
      * Déduit le chauffeur à partir de l'utilisateur authentifié,
      * uniquement si celui-ci a le rôle CHAUFFEUR (évite qu'un admin/gestionnaire
