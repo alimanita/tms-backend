@@ -32,6 +32,7 @@ public class DashboardService {
     private final NotificationRepository     notificationRepository;
     private final PleinCarburantRepository   pleinCarburantRepository;
     private final OrdreTravailRepository     ordreTravailRepository;
+    private final PeageRepository            peageRepository;
 
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard() {
@@ -43,15 +44,19 @@ public class DashboardService {
         // ── Dépenses = coûts missions + carburant + maintenance ──────────────
         BigDecimal missionCost = missionRepository.sumAllMissionCost();
         BigDecimal missionFuelCost = missionRepository.sumAllFuelCost();
+        BigDecimal missionTollCost = missionRepository.sumAllTollCost();
         BigDecimal fuelCost = pleinCarburantRepository.sumAllCoutCarburant();
+        BigDecimal peageCost = peageRepository.sumAllCoutPeage();
         BigDecimal maintenanceCost = ordreTravailRepository.sumAllCout();
         
         if (missionCost == null) missionCost = BigDecimal.ZERO;
         if (missionFuelCost == null) missionFuelCost = BigDecimal.ZERO;
+        if (missionTollCost == null) missionTollCost = BigDecimal.ZERO;
         if (fuelCost == null) fuelCost = BigDecimal.ZERO;
+        if (peageCost == null) peageCost = BigDecimal.ZERO;
         if (maintenanceCost == null) maintenanceCost = BigDecimal.ZERO;
         
-        BigDecimal expenses = missionCost.subtract(missionFuelCost).add(fuelCost).add(maintenanceCost);
+        BigDecimal expenses = missionCost.subtract(missionFuelCost).subtract(missionTollCost).add(fuelCost).add(peageCost).add(maintenanceCost);
 
         // ── Bénéfice net ────────────────────────────────────────────────────────
         BigDecimal netProfit = revenue.subtract(expenses);
@@ -109,6 +114,12 @@ public class DashboardService {
         }
         // Ajouter les coûts de maintenance par mois
         for (Object[] row : ordreTravailRepository.sumCostByYearMonth(fromDate)) {
+            String key = yearMonthKey(row);
+            BigDecimal val = toBigDecimal(row[2]);
+            expensesMap.merge(key, val, BigDecimal::add);
+        }
+        // Ajouter les coûts de péages par mois
+        for (Object[] row : peageRepository.sumCostByYearMonth(fromDate)) {
             String key = yearMonthKey(row);
             BigDecimal val = toBigDecimal(row[2]);
             expensesMap.merge(key, val, BigDecimal::add);

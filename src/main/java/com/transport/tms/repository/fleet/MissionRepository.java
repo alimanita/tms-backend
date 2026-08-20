@@ -132,9 +132,8 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
         ORDER BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
         """)
     List<Object[]> sumRevenueByYearMonth(@Param("fromDate") LocalDateTime fromDate);
-    /** Coûts missions mensuels (6 derniers mois) pour le graphique du dashboard. */
     @Query("""
-        SELECT EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn), COALESCE(SUM(m.totalCost), 0)
+        SELECT EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn), COALESCE(SUM(m.totalCost - COALESCE(m.fuelCost, 0) - COALESCE(m.tollCost, 0)), 0)
         FROM Mission m
         WHERE m.statut = 'COMPLETED'
         AND m.actualReturn IS NOT NULL
