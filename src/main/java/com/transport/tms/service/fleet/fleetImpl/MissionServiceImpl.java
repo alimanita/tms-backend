@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -72,26 +73,35 @@ public class MissionServiceImpl implements MissionService {
         throw new AccessDeniedException("Utilisateur non authentifié");
     }
     @Override
-    public MissionResponse create(MissionRequest request) {
+    public MissionResponse create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
         Vehicule vehicule = findVehiculeById(request.vehiculeId());
-        Chauffeur chauffeur = findChauffeurById(request.chauffeurId());
+        
+        List<Chauffeur> chauffeurs = new ArrayList<>();
+        for (Long chauffeurId : request.chauffeurIds()) {
+            Chauffeur c = findChauffeurById(chauffeurId);
+            validerPermisVehicule(c);
+            chauffeurs.add(c);
+        }
 
-        // Règles métier VM-01 et DR-01
+        // Règles métier VM-01
         validerDisponibiliteVehicule(vehicule);
-        validerDisponibiliteChauffeur(chauffeur);
-        validerPermisVehicule(chauffeur);
 
         Mission mission = mapper.toEntity(request);
         mission.setReference(generateReference());
         mission.setVehicule(vehicule);
-        mission.setChauffeur(chauffeur);
+        mission.setChauffeurs(chauffeurs);
         mission.setStatut(Mission.StatutMission.PLANNED);
+
+        if (letter != null && !letter.isEmpty()) {
+            String filePath = fileStorageService.store(letter);
+            mission.setLetterMissionPath(filePath);
+        }
 
         return mapper.toResponse(missionRepository.save(mission));
     }
 
     @Override
-    public MissionResponse update(Long id, MissionRequest request) {
+    public MissionResponse update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
         Mission mission = findEntityById(id);
         if (mission.getStatut() != Mission.StatutMission.PLANNED) {
             throw new InvalidOperationException(
@@ -104,13 +114,30 @@ public class MissionServiceImpl implements MissionService {
             validerDisponibiliteVehicule(vehicule);
             mission.setVehicule(vehicule);
         }
-        if (!mission.getChauffeur().getId().equals(request.chauffeurId())) {
-            Chauffeur chauffeur = findChauffeurById(request.chauffeurId());
-            validerDisponibiliteChauffeur(chauffeur);
-            mission.setChauffeur(chauffeur);
+        
+        List<Chauffeur> chauffeurs = new ArrayList<>();
+        for (Long chauffeurId : request.chauffeurIds()) {
+            Chauffeur c = findChauffeurById(chauffeurId);
+            validerPermisVehicule(c);
+            chauffeurs.add(c);
+        }
+        mission.setChauffeurs(chauffeurs);
+
+        if (letter != null && !letter.isEmpty()) {
+            String filePath = fileStorageService.store(letter);
+            mission.setLetterMissionPath(filePath);
         }
 
         return mapper.toResponse(missionRepository.save(mission));
+    }
+
+    @Override
+    public org.springframework.core.io.Resource getLetterMission(Long id) {
+        Mission mission = findEntityById(id);
+        if (mission.getLetterMissionPath() == null || mission.getLetterMissionPath().isBlank()) {
+            throw new EntityNotFoundException("Aucune lettre de mission attachée à cette mission");
+        }
+        return fileStorageService.load(mission.getLetterMissionPath());
     }
 
     @Override
@@ -156,7 +183,7 @@ public class MissionServiceImpl implements MissionService {
             }
         }
 
-        return missionRepository.findByChauffeurIdOrderByPlannedDepartureDesc(chauffeurId)
+        return missionRepository.findByChauffeursIdOrderByPlannedDepartureDesc(chauffeurId)
                 .stream().map(mapper::toResponse).toList();
     }
 
@@ -191,9 +218,10 @@ public class MissionServiceImpl implements MissionService {
         vehicule.setStatut(StatutVehicule.EN_MISSION);
         vehiculeRepository.save(vehicule);
 
-        Chauffeur chauffeur = mission.getChauffeur();
-        chauffeur.setStatut(StatutChauffeur.EN_MISSION);
-        chauffeurRepository.save(chauffeur);
+        for (Chauffeur chauffeur : mission.getChauffeurs()) {
+            chauffeur.setStatut(StatutChauffeur.EN_MISSION);
+            chauffeurRepository.save(chauffeur);
+        }
 
         log.info("Mission {} démarrée — Véhicule {} en mission (km départ: {})",
                 mission.getReference(), vehicule.getReference(), mileageAtDeparture);
@@ -217,9 +245,10 @@ public class MissionServiceImpl implements MissionService {
         vehicule.setStatut(StatutVehicule.DISPONIBLE);
         vehiculeRepository.save(vehicule);
 
-        Chauffeur chauffeur = mission.getChauffeur();
-        chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
-        chauffeurRepository.save(chauffeur);
+        for (Chauffeur chauffeur : mission.getChauffeurs()) {
+            chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
+            chauffeurRepository.save(chauffeur);
+        }
 
         log.info("Mission {} clôturée (km retour: {})", mission.getReference(), mileageAtReturn);
         return mapper.toResponse(missionRepository.save(mission));
@@ -236,8 +265,10 @@ public class MissionServiceImpl implements MissionService {
         if (mission.getStatut() == Mission.StatutMission.IN_PROGRESS) {
             mission.getVehicule().setStatut(StatutVehicule.DISPONIBLE);
             vehiculeRepository.save(mission.getVehicule());
-            mission.getChauffeur().setStatut(StatutChauffeur.DISPONIBLE);
-            chauffeurRepository.save(mission.getChauffeur());
+            for (Chauffeur chauffeur : mission.getChauffeurs()) {
+                chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
+                chauffeurRepository.save(chauffeur);
+            }
         }
 
         mission.setStatut(Mission.StatutMission.CANCELLED);
@@ -270,7 +301,7 @@ public class MissionServiceImpl implements MissionService {
             PleinCarburant plein = new PleinCarburant();
             plein.setReference("FUEL-" + System.currentTimeMillis());
             plein.setVehicule(mission.getVehicule());
-            plein.setChauffeur(mission.getChauffeur());
+            plein.setChauffeur(mission.getChauffeurs().isEmpty() ? null : mission.getChauffeurs().get(0));
             plein.setFillingDate(depense.getExpenseDate());
             plein.setFuelType(mission.getVehicule().getTypeCarburant() != null ? mission.getVehicule().getTypeCarburant().name() : "DIESEL"); 
             plein.setQuantityLiters(request.quantityLiters() != null ? request.quantityLiters() : java.math.BigDecimal.ONE);
@@ -402,7 +433,7 @@ public class MissionServiceImpl implements MissionService {
         Chauffeur chauffeur = chauffeurRepository.findByUtilisateurId(utilisateur.getId())
                 .orElseThrow(() -> new AccessDeniedException("Aucun profil chauffeur lié à cet utilisateur"));
 
-        return missionRepository.findByChauffeurIdOrderByPlannedDepartureDesc(chauffeur.getId())
+        return missionRepository.findByChauffeursIdOrderByPlannedDepartureDesc(chauffeur.getId())
                 .stream().map(mapper::toResponse).toList();
     }
 

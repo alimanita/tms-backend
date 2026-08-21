@@ -14,8 +14,8 @@ public record MissionResponse(
     Long vehiculeId,
     String vehiculeRef,
     String vehiculeImmatriculation,
-    Long chauffeurId,
-    String chauffeurNomComplet,
+    java.util.List<Long> chauffeurIds,
+    String chauffeursNoms,
     Mission.StatutMission statut,
     String departureLocation,
     String arrivalLocation,
@@ -39,5 +39,6 @@ public record MissionResponse(
     Long approvedBy,
     LocalDateTime approvedAt,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    String letterMissionUrl
 ) {}

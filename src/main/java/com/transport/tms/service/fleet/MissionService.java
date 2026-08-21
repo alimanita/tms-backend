@@ -10,8 +10,9 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface MissionService {
-    MissionResponse create(MissionRequest request);
-    MissionResponse update(Long id, MissionRequest request);
+    MissionResponse create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter);
+    MissionResponse update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter);
+    org.springframework.core.io.Resource getLetterMission(Long id);
     MissionResponse findById(Long id);
     Page<MissionResponse> findAll(Pageable pageable);
     List<MissionResponse> findByVehicule(Long vehiculeId);

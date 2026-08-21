@@ -43,10 +43,23 @@ public class MissionMapper {
     }
 
     public MissionResponse toResponse(Mission mission) {
-        String chauffeurNom = null;
-        if (mission.getChauffeur() != null) {
-            chauffeurNom = mission.getChauffeur().getNom()
-                    + " " + mission.getChauffeur().getPrenom();
+        java.util.List<Long> chauffeurIds = new java.util.ArrayList<>();
+        java.util.List<String> chauffeursNomsList = new java.util.ArrayList<>();
+        if (mission.getChauffeurs() != null && !mission.getChauffeurs().isEmpty()) {
+            for (com.transport.tms.domain.entity.fleet.Chauffeur c : mission.getChauffeurs()) {
+                chauffeurIds.add(c.getId());
+                chauffeursNomsList.add(c.getNom() + " " + c.getPrenom());
+            }
+        }
+        String chauffeursNoms = String.join(", ", chauffeursNomsList);
+
+        String letterUrl = null;
+        if (mission.getLetterMissionPath() != null && !mission.getLetterMissionPath().isBlank()) {
+            letterUrl = org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/api/v1/fleet/missions/")
+                    .path(mission.getId().toString())
+                    .path("/letter")
+                    .toUriString();
         }
 
         return new MissionResponse(
@@ -57,8 +70,8 @@ public class MissionMapper {
                 mission.getVehicule().getId(),
                 mission.getVehicule().getReference(),
                 mission.getVehicule().getImmatriculation(),
-                mission.getChauffeur().getId(),
-                chauffeurNom,
+                chauffeurIds,
+                chauffeursNoms,
                 mission.getStatut(),
                 mission.getDepartureLocation(),
                 mission.getArrivalLocation(),
@@ -82,7 +95,8 @@ public class MissionMapper {
                 mission.getApprovedBy(),
                 mission.getApprovedAt(),
                 mission.getCreatedAt(),
-                mission.getUpdatedAt()
+                mission.getUpdatedAt(),
+                letterUrl
         );
     }
 

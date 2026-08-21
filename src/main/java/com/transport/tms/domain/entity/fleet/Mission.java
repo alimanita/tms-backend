@@ -37,9 +37,13 @@ public class Mission {
     @JoinColumn(name = "vehicle_id", nullable = false)
     private Vehicule vehicule;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "driver_id", nullable = false)
-    private Chauffeur chauffeur;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "mission_chauffeur",
+            joinColumns = @JoinColumn(name = "mission_id"),
+            inverseJoinColumns = @JoinColumn(name = "chauffeur_id")
+    )
+    private List<Chauffeur> chauffeurs = new ArrayList<>();
 
     @Column(length = 30)
     @Enumerated(EnumType.STRING)
@@ -102,6 +106,9 @@ public class Mission {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "letter_mission_path", columnDefinition = "TEXT")
+    private String letterMissionPath;
+
     @Column(name = "approved_by")
     private Long approvedBy;
 
@@ -144,11 +151,26 @@ public class Mission {
     }
 
     public void recalculerCoutTotal() {
-        this.totalCost = depenses.stream()
+        this.fuelCost = depenses.stream()
+                .filter(d -> d.getExpenseType() == DepenseMission.TypeDepense.FUEL)
                 .map(DepenseMission::getMontant)
+                .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
+                
+        this.tollCost = depenses.stream()
+                .filter(d -> d.getExpenseType() == DepenseMission.TypeDepense.TOLL)
+                .map(DepenseMission::getMontant)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+        this.otherExpenses = depenses.stream()
+                .filter(d -> d.getExpenseType() != DepenseMission.TypeDepense.FUEL && d.getExpenseType() != DepenseMission.TypeDepense.TOLL)
+                .map(DepenseMission::getMontant)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        this.totalCost = this.fuelCost.add(this.tollCost).add(this.otherExpenses);
+    }
 
 
     public enum StatutMission {  PLANNED,  IN_PROGRESS, COMPLETED, CANCELLED }

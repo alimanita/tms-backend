@@ -22,12 +22,18 @@ public interface MissionApi {
     @GetMapping("/{id}")
     ResponseEntity<MissionResponse> findById(@PathVariable Long id);
 
-    @PostMapping
-    ResponseEntity<MissionResponse> create(@Valid @RequestBody MissionRequest request);
+    @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<MissionResponse> create(
+        @RequestPart("mission") @Valid MissionRequest request,
+        @RequestPart(value = "letter", required = false) org.springframework.web.multipart.MultipartFile letter);
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<MissionResponse> update(@PathVariable Long id,
-                                           @Valid @RequestBody MissionRequest request);
+                                           @RequestPart("mission") @Valid MissionRequest request,
+                                           @RequestPart(value = "letter", required = false) org.springframework.web.multipart.MultipartFile letter);
+
+    @GetMapping("/{id}/letter")
+    ResponseEntity<org.springframework.core.io.Resource> downloadLetter(@PathVariable Long id);
 
 /*    @PatchMapping("/{id}/soumettre")
     ResponseEntity<MissionResponse> soumettre(@PathVariable Long id);

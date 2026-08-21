@@ -34,14 +34,29 @@ public class MissionController implements MissionApi {
     }
 
     @Override
-    public ResponseEntity<MissionResponse> create(MissionRequest request) {
+    public ResponseEntity<MissionResponse> create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(missionService.create(request));
+                .body(missionService.create(request, letter));
     }
 
     @Override
-    public ResponseEntity<MissionResponse> update(Long id, MissionRequest request) {
-        return ResponseEntity.ok(missionService.update(id, request));
+    public ResponseEntity<MissionResponse> update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
+        return ResponseEntity.ok(missionService.update(id, request, letter));
+    }
+
+    @Override
+    public ResponseEntity<org.springframework.core.io.Resource> downloadLetter(Long id) {
+        org.springframework.core.io.Resource file = missionService.getLetterMission(id);
+        String contentType = "application/octet-stream";
+        try {
+            contentType = java.nio.file.Files.probeContentType(java.nio.file.Paths.get(file.getURI()));
+        } catch (java.io.IOException ex) {
+            // Ignorer
+        }
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType != null ? contentType : "application/octet-stream"))
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFilename() + "\"")
+                .body(file);
     }
 
 /*    @Override
