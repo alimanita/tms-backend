@@ -245,4 +245,81 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
             throw new InvalidOperationException("Erreur lors de l'analyse du ticket de péage: " + e.getMessage());
         }
     }
+
+    @Override
+    public com.transport.tms.dto.fleet.response.OcrPieceResult extractPieceData(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            throw new InvalidOperationException("L'image fournie est vide ou nulle.");
+        }
+
+        if (anthropicApiKey == null || anthropicApiKey.isEmpty()) {
+            throw new InvalidOperationException("La clé API Anthropic n'est pas configurée.");
+        }
+
+        try {
+            String base64Image = Base64.getEncoder().encodeToString(image.getBytes());
+            String mimeType = image.getContentType();
+            if (mimeType == null || !mimeType.startsWith("image/")) {
+                mimeType = "image/jpeg";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-api-key", anthropicApiKey);
+            headers.set("anthropic-version", "2023-06-01");
+
+            Map<String, Object> source = new HashMap<>();
+            source.put("type", "base64");
+            source.put("media_type", mimeType);
+            source.put("data", base64Image);
+
+            Map<String, Object> imageContent = new HashMap<>();
+            imageContent.put("type", "image");
+            imageContent.put("source", source);
+
+            Map<String, Object> textContent = new HashMap<>();
+            textContent.put("type", "text");
+            textContent.put("text", "Extrais les données de cette facture/ticket de pièce de rechange. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés : 'name' (chaîne de caractères, désignation de la pièce), 'brand' (chaîne de caractères, marque, ex: Bosch), 'unitCost' (nombre, coût unitaire, 0 si non trouvé), 'amountHT' (nombre, montant HT, 0 si non trouvé), 'tvaAmount' (nombre, montant TVA, 0 si non trouvé), 'tvaRate' (nombre, taux TVA en %, ex: 19.0, 0 si non trouvé).");
+
+            Map<String, Object> message = new HashMap<>();
+            message.put("role", "user");
+            message.put("content", List.of(imageContent, textContent));
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("model", anthropicModel);
+            body.put("max_tokens", 1024);
+            body.put("messages", List.of(message));
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    "https://api.anthropic.com/v1/messages",
+                    requestEntity,
+                    String.class
+            );
+
+            JsonNode rootNode = objectMapper.readTree(response.getBody());
+            String assistantReply = rootNode.path("content").get(0).path("text").asText();
+
+            assistantReply = assistantReply.replaceAll("(?s)^```json\\s*", "");
+            assistantReply = assistantReply.replaceAll("(?s)\\s*```$", "");
+
+            log.info("Anthropic raw response (PieceRechange): {}", assistantReply);
+
+            JsonNode jsonResult = objectMapper.readTree(assistantReply);
+
+            return com.transport.tms.dto.fleet.response.OcrPieceResult.builder()
+                    .name(jsonResult.path("name").asText(null))
+                    .brand(jsonResult.path("brand").asText(null))
+                    .unitCost(getBigDecimalNode(jsonResult, "unitCost"))
+                    .amountHT(getBigDecimalNode(jsonResult, "amountHT"))
+                    .tvaAmount(getBigDecimalNode(jsonResult, "tvaAmount"))
+                    .tvaRate(getBigDecimalNode(jsonResult, "tvaRate"))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Erreur lors de l'extraction OCR via Anthropic (PieceRechange)", e);
+            throw new InvalidOperationException("Erreur lors de l'analyse du ticket: " + e.getMessage());
+        }
+    }
 }

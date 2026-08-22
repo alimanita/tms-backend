@@ -8,4 +8,5 @@ import com.transport.tms.dto.fleet.response.OcrTollResult;
 public interface ReceiptOcrService {
     OcrFuelResult extractFuelData(MultipartFile image);
     OcrTollResult extractTollData(MultipartFile image);
+    com.transport.tms.dto.fleet.response.OcrPieceResult extractPieceData(MultipartFile image);
 }

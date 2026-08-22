@@ -19,4 +19,5 @@ public interface PieceRechangeService {
     void delete(Long id);
     PieceRechangeResponse uploadProofFile(Long id, org.springframework.web.multipart.MultipartFile file);
     org.springframework.core.io.Resource getProofFile(Long id);
+    com.transport.tms.dto.fleet.response.OcrPieceResult extractPieceData(org.springframework.web.multipart.MultipartFile proof);
 }

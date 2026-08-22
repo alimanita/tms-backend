@@ -85,4 +85,9 @@ public class PieceRechangeController implements PieceRechangeApi {
                 .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, contentType)
                 .body(resource);
     }
+
+    @Override
+    public ResponseEntity<com.transport.tms.dto.fleet.response.OcrPieceResult> extractPieceData(org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(pieceRechangeService.extractPieceData(file));
+    }
 }

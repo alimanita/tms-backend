@@ -42,4 +42,8 @@ public interface PieceRechangeApi {
 
     @GetMapping("/{id}/proof")
     ResponseEntity<org.springframework.core.io.Resource> getProofFile(@PathVariable Long id);
+
+    @PostMapping(value = "/extract", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<com.transport.tms.dto.fleet.response.OcrPieceResult> extractPieceData(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file);
 }

@@ -28,6 +28,7 @@ public class PieceRechangeServiceImpl implements PieceRechangeService {
     private final PieceRechangeRepository pieceRepository;
     private final PieceRechangeMapper mapper;
     private final com.transport.tms.service.fleet.FileStorageService fileStorageService;
+    private final com.transport.tms.service.fleet.ReceiptOcrService receiptOcrService;
 
     @Override
     public PieceRechangeResponse create(PieceRechangeRequest request) {
@@ -109,5 +110,10 @@ public class PieceRechangeServiceImpl implements PieceRechangeService {
             throw new EntityNotFoundException("Aucun justificatif pour cette pièce");
         }
         return fileStorageService.load(piece.getReceiptPath());
+    }
+
+    @Override
+    public com.transport.tms.dto.fleet.response.OcrPieceResult extractPieceData(org.springframework.web.multipart.MultipartFile proof) {
+        return receiptOcrService.extractPieceData(proof);
     }
 }
