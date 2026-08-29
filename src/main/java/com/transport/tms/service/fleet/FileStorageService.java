@@ -44,31 +44,41 @@ public class FileStorageService {
 
             Path dirPath = Paths.get(uploadDir, subDir);
             Files.createDirectories(dirPath);
-            log.info("Dossier créé/vérifié: {}", dirPath.toAbsolutePath());
+            log.info("Dossier cree/verifie: {}", dirPath.toAbsolutePath());
 
-            // Vérifier les permissions d'écriture
+            // Verifier les permissions d'ecriture
             if (!Files.isWritable(dirPath)) {
-                log.error("Le dossier n'est pas accessible en écriture: {}", dirPath.toAbsolutePath());
-                throw new IOException("Le dossier n'est pas accessible en écriture: " + dirPath.toAbsolutePath());
+                log.error("Le dossier n'est pas accessible en ecriture: {}", dirPath.toAbsolutePath());
+                throw new IOException("Le dossier n'est pas accessible en ecriture: " + dirPath.toAbsolutePath());
             }
 
-            String originalName = file.getOriginalFilename();
-            String ext = originalName != null && originalName.contains(".")
-                    ? originalName.substring(originalName.lastIndexOf('.') + 1)
-                    : null;
+            String contentType = file.getContentType();
+            boolean isImage = contentType != null && contentType.startsWith("image/");
 
-            log.info("Extension détectée: {}", ext);
+            if (isImage) {
+                // Compression en WebP qualite 75
+                String filename = UUID.randomUUID() + ".webp";
+                Path target = dirPath.resolve(filename);
+                log.info("Compression WebP -> {}", target.toAbsolutePath());
+                ImageCompressionUtil.compressToWebP(file.getInputStream(), target, 0.75f);
+                log.info("Image compressee en WebP avec succes: {}", target.toAbsolutePath());
+                return filename;
+            } else {
+                // PDF ou autre -> stockage direct sans transformation
+                String originalName = file.getOriginalFilename();
+                String ext = originalName != null && originalName.contains(".")
+                        ? originalName.substring(originalName.lastIndexOf('.') + 1)
+                        : null;
+                log.info("Extension detectee: {}", ext);
+                String filename = UUID.randomUUID() + (ext != null && !ext.isBlank() ? "." + ext : "");
+                log.info("Nom de fichier genere: {}", filename);
+                Path target = dirPath.resolve(filename);
+                log.info("Chemin cible: {}", target.toAbsolutePath());
+                Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+                log.info("Fichier enregistre avec succes: {}", target.toAbsolutePath());
+                return filename;
+            }
 
-            String filename = UUID.randomUUID() + (ext != null && !ext.isBlank() ? "." + ext : "");
-            log.info("Nom de fichier généré: {}", filename);
-
-            Path target = dirPath.resolve(filename);
-            log.info("Chemin cible: {}", target.toAbsolutePath());
-
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
-            log.info("Fichier enregistré avec succès: {}", target.toAbsolutePath());
-
-            return filename;
         } catch (IOException e) {
             log.error("Erreur lors de l'enregistrement du fichier", e);
             throw new RuntimeException("Erreur lors de l'enregistrement du fichier: " + e.getMessage(), e);
@@ -91,7 +101,7 @@ public class FileStorageService {
             }
 
             Path file = Paths.get(uploadDir, subDir).resolve(filename);
-            log.info("Chemin résolu: {}", file.toAbsolutePath());
+            log.info("Chemin resolu: {}", file.toAbsolutePath());
 
             Resource resource = new UrlResource(file.toUri());
 
@@ -105,11 +115,11 @@ public class FileStorageService {
                 throw new EntityNotFoundException("Fichier non lisible : " + filename);
             }
 
-            log.info("Fichier chargé avec succès: {}", file.toAbsolutePath());
+            log.info("Fichier charge avec succes: {}", file.toAbsolutePath());
             return resource;
         } catch (MalformedURLException e) {
-            log.error("URL mal formée pour le fichier: {}", filename, e);
-            throw new RuntimeException("URL mal formée pour le fichier: " + filename, e);
+            log.error("URL mal formee pour le fichier: {}", filename, e);
+            throw new RuntimeException("URL mal formee pour le fichier: " + filename, e);
         }
     }
 
@@ -128,7 +138,7 @@ public class FileStorageService {
 
             Path file = Paths.get(uploadDir, subDir).resolve(filename);
             boolean deleted = Files.deleteIfExists(file);
-            log.info("Fichier supprimé: {}", deleted);
+            log.info("Fichier supprime: {}", deleted);
         } catch (IOException e) {
             log.error("Erreur lors de la suppression du fichier: {}", filename, e);
         }

@@ -85,6 +85,18 @@
             <artifactId>firebase-admin</artifactId>
             <version>9.4.1</version>
         </dependency>
+
+        <!-- OpenCV via JavaCV : traitement image complet (scan, WebP, perspective) -->
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacv</artifactId>
+            <version>1.5.10</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>opencv-platform</artifactId>
+            <version>4.9.0-1.5.10</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
