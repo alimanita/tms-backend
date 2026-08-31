@@ -89,6 +89,19 @@ public class Chauffeur {
     @Column(precision = 12, scale = 2)
     private BigDecimal valeurSalaire;
 
+    // ── Paramètres de visibilité (configurables par l'admin) ──────────────────
+    @Builder.Default
+    @Column(name = "show_tarif")
+    private Boolean showTarif = true;
+
+    @Builder.Default
+    @Column(name = "show_cout")
+    private Boolean showCout = true;
+
+    @Builder.Default
+    @Column(name = "show_carburant")
+    private Boolean showCarburant = true;
+
     @Builder.Default
     private Boolean actif = true;
 

@@ -164,24 +164,21 @@
       },
       "children": [
         {
-          "route": "/accountant-dashboard",
-          "name": "Tableau de bord",
-          "type": "link",
-          "icon": "insert_chart"
-        },
-        {
-          "route": "/finance",
-          "name": "Comptabilité",
-          "type": "link",
-          "icon": "account_balance_wallet"
-        },
-        {
           "route": "/admin",
           "name": "Administration",
           "type": "link",
           "icon": "admin_panel_settings",
           "permissions": {
             "except": ["COMPTABLE"]
+          }
+        },
+        {
+          "route": "/fleet/settings",
+          "name": "Paramètres",
+          "type": "link",
+          "icon": "tune",
+          "permissions": {
+            "only": ["ADMIN", "SUPERADMIN", "SUPER_ADMIN"]
           }
         }
       ]

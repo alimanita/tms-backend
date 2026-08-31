@@ -1,6 +1,7 @@
 package com.transport.tms.service.fleet;
 
 
+import com.transport.tms.dto.fleet.request.ChauffeurConfigRequest;
 import com.transport.tms.dto.fleet.request.ChauffeurRequest;
 import com.transport.tms.dto.fleet.response.ChauffeurResponse;
 import org.springframework.data.domain.Page;
@@ -23,5 +24,8 @@ public interface ChauffeurService {
     List<ChauffeurResponse> getAllActive();
 
     ChauffeurResponse toggleActif(Long id);
+
+    // Paramétrage de la visibilité
+    List<ChauffeurResponse> updateSettings(ChauffeurConfigRequest request);
     
 }

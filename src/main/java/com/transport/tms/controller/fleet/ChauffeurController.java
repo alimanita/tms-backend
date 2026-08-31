@@ -1,5 +1,6 @@
 package com.transport.tms.controller.fleet;
 
+import com.transport.tms.dto.fleet.request.ChauffeurConfigRequest;
 import com.transport.tms.service.fleet.ChauffeurService;
 import lombok.RequiredArgsConstructor;
 import com.transport.tms.controller.api.fleet.ChauffeurApi;
@@ -58,5 +59,10 @@ public class ChauffeurController implements ChauffeurApi {
     @Override
     public ResponseEntity<ChauffeurResponse> toggleActif(Long id) {
         return ResponseEntity.ok(chauffeurService.toggleActif(id));
+    }
+
+    @Override
+    public ResponseEntity<List<ChauffeurResponse>> updateSettings(ChauffeurConfigRequest request) {
+        return ResponseEntity.ok(chauffeurService.updateSettings(request));
     }
 }

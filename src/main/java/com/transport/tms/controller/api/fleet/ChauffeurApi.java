@@ -1,5 +1,6 @@
 package com.transport.tms.controller.api.fleet;
 
+import com.transport.tms.dto.fleet.request.ChauffeurConfigRequest;
 import com.transport.tms.dto.fleet.request.ChauffeurRequest;
 import jakarta.validation.Valid;
 
@@ -35,4 +36,7 @@ public interface ChauffeurApi {
 
     @PatchMapping("/{id}/toggle-actif")
     ResponseEntity<ChauffeurResponse> toggleActif(@PathVariable Long id);
+
+    @PutMapping("/settings")
+    ResponseEntity<List<ChauffeurResponse>> updateSettings(@RequestBody ChauffeurConfigRequest request);
 }

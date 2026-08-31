@@ -2,6 +2,7 @@ package com.transport.tms.service.fleet.fleetImpl;
 
 import com.transport.tms.domain.entity.Utilisateur;
 import com.transport.tms.domain.entity.fleet.Chauffeur;
+import com.transport.tms.dto.fleet.request.ChauffeurConfigRequest;
 import com.transport.tms.dto.fleet.request.ChauffeurRequest;
 import com.transport.tms.dto.fleet.response.ChauffeurResponse;
 import com.transport.tms.exception.ErrorCodes;
@@ -34,13 +35,25 @@ public class ChauffeurServiceImpl implements ChauffeurService {
     private final ChauffeurMapper mapper;
 
 
+    private final com.transport.tms.repository.UtilisateurRepository utilisateurRepository;
 
     private Utilisateur utilisateurConnecte(Authentication auth) {
-        if (auth != null && auth.getPrincipal() instanceof Utilisateur u) {
-            return u;
+        if (auth != null) {
+            Object principal = auth.getPrincipal();
+            String username = null;
+            if (principal instanceof org.springframework.security.core.userdetails.UserDetails userDetails) {
+                username = userDetails.getUsername();
+            } else if (principal instanceof String str) {
+                username = str;
+            }
+            if (username != null) {
+                return utilisateurRepository.findByEmail(username)
+                        .orElseThrow(() -> new AccessDeniedException("Utilisateur non trouvé en base"));
+            }
         }
         throw new AccessDeniedException("Utilisateur non authentifié");
     }
+
     @Override
     public ChauffeurResponse create(ChauffeurRequest request) {
         log.info("Création d'un nouveau chauffeur: {}", request.nom());
@@ -102,8 +115,6 @@ public class ChauffeurServiceImpl implements ChauffeurService {
     @Transactional(readOnly = true)
     public List<ChauffeurResponse> getAllActive() {
         log.info("Récupération de tous les chauffeurs actifs");
-        // Assuming there is a findByActifTrue method or similar, 
-        // falling back to filtering all if not present in the repository interface
         return chauffeurRepository.findAll().stream()
                 .filter(c -> Boolean.TRUE.equals(c.getActif()))
                 .map(chauffeurMapper::toResponse)
@@ -119,5 +130,30 @@ public class ChauffeurServiceImpl implements ChauffeurService {
         chauffeur.setActif(!Boolean.TRUE.equals(chauffeur.getActif()));
         Chauffeur saved = chauffeurRepository.save(chauffeur);
         return chauffeurMapper.toResponse(saved);
+    }
+
+    @Override
+    public List<ChauffeurResponse> updateSettings(ChauffeurConfigRequest request) {
+        log.info("Mise à jour des paramètres de visibilité des chauffeurs, global={}", request.isGlobal());
+
+        List<Chauffeur> chauffeurs;
+        if (Boolean.TRUE.equals(request.isGlobal())) {
+            chauffeurs = chauffeurRepository.findAll();
+        } else {
+            if (request.chauffeurIds() == null || request.chauffeurIds().isEmpty()) {
+                throw new IllegalArgumentException("La liste des IDs de chauffeurs ne peut pas être vide pour un paramétrage personnalisé.");
+            }
+            chauffeurs = chauffeurRepository.findAllById(request.chauffeurIds());
+        }
+
+        for (Chauffeur c : chauffeurs) {
+            if (request.showTarif() != null)    c.setShowTarif(request.showTarif());
+            if (request.showCout() != null)      c.setShowCout(request.showCout());
+            if (request.showCarburant() != null) c.setShowCarburant(request.showCarburant());
+        }
+
+        return chauffeurRepository.saveAll(chauffeurs).stream()
+                .map(chauffeurMapper::toResponse)
+                .collect(Collectors.toList());
     }
 }

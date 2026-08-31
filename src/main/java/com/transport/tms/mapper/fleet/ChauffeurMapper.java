@@ -155,7 +155,10 @@ public class ChauffeurMapper {
                 utilisateur != null ? utilisateur.getId() : null,
                 utilisateur != null ? utilisateur.getEmail() : null,
                 chauffeur.getTypeSalaire(),
-                chauffeur.getValeurSalaire()
+                chauffeur.getValeurSalaire(),
+                chauffeur.getShowTarif() != null ? chauffeur.getShowTarif() : true,
+                chauffeur.getShowCout() != null ? chauffeur.getShowCout() : true,
+                chauffeur.getShowCarburant() != null ? chauffeur.getShowCarburant() : true
         );
     }
 

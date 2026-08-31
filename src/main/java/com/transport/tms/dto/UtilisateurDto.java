@@ -31,6 +31,11 @@ public class UtilisateurDto {
   private Long driverId;
   private Instant createdAt;
 
+  // Paramètres visibilité chauffeur (non null seulement pour le rôle CHAUFFEUR)
+  private Boolean showTarif;
+  private Boolean showCout;
+  private Boolean showCarburant;
+
   private EntrepriseDto entreprise;
   private Set<RolesDto> roles;
 

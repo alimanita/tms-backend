@@ -7,6 +7,7 @@ import com.transport.tms.dto.*;
 import com.transport.tms.exception.ErrorCodes;
 import com.transport.tms.exception.InvalidEntityException;
 import com.transport.tms.repository.UtilisateurRepository;
+import com.transport.tms.repository.fleet.ChauffeurRepository;
 import com.transport.tms.service.AuthenticationService;
 import com.transport.tms.utils.JwtUtil;
 import jakarta.persistence.EntityNotFoundException;
@@ -40,6 +41,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
+    private final ChauffeurRepository chauffeurRepository;
     @Autowired
     private final UserDetailsService userDetailsService;
     @Value("classpath:menu.json")
@@ -50,13 +52,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             PasswordEncoder passwordEncoder,
             JwtUtil jwtUtil,
             AuthenticationManager authenticationManager,
-            UserDetailsService userDetailsService
+            UserDetailsService userDetailsService,
+            ChauffeurRepository chauffeurRepository
     ) {
         this.utilisateurRepository = utilisateurRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
+        this.chauffeurRepository = chauffeurRepository;
     }
 
     @Override
@@ -122,7 +126,23 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé"));
         UtilisateurDto dto = UtilisateurDto.fromEntity(utilisateur);
         dto.setPassword(null);
+
+        // Enrichir avec les paramètres de visibilité si c'est un chauffeur
+        enrichWithChauffeurSettings(dto, utilisateur);
+
         return dto;
+    }
+
+    private void enrichWithChauffeurSettings(UtilisateurDto dto, Utilisateur utilisateur) {
+        try {
+            chauffeurRepository.findByUtilisateurId(utilisateur.getId()).ifPresent(chauffeur -> {
+                dto.setShowTarif(chauffeur.getShowTarif() != null ? chauffeur.getShowTarif() : true);
+                dto.setShowCout(chauffeur.getShowCout() != null ? chauffeur.getShowCout() : true);
+                dto.setShowCarburant(chauffeur.getShowCarburant() != null ? chauffeur.getShowCarburant() : true);
+            });
+        } catch (Exception e) {
+            log.warn("Impossible de récupérer les paramètres chauffeur pour l'utilisateur {}: {}", utilisateur.getId(), e.getMessage());
+        }
     }
     @Override
     public AuthenticationResponse refreshToken(String refreshToken) {

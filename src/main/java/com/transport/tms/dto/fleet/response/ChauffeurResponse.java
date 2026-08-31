@@ -38,5 +38,10 @@ public record ChauffeurResponse(
         Long idUtilisateur,
         String utilisateurEmail,
         com.transport.tms.domain.enums.TypeSalaire typeSalaire,
-        BigDecimal valeurSalaire
+        BigDecimal valeurSalaire,
+
+        // Paramètres de visibilité
+        Boolean showTarif,
+        Boolean showCout,
+        Boolean showCarburant
 ) {}
