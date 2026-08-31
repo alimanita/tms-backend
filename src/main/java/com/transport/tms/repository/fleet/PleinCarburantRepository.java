@@ -30,6 +30,8 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
 
     List<PleinCarburant> findByChauffeurIdOrderByFillingDateDesc(Long chauffeurId);
 
+    Page<PleinCarburant> findByChauffeurId(Long chauffeurId, Pageable pageable);
+
     Optional<PleinCarburant> findTopByVehiculeIdOrderByFillingDateDesc(Long vehiculeId);
 
     @Query("""

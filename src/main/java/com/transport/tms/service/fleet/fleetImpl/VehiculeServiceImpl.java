@@ -72,11 +72,34 @@ public class VehiculeServiceImpl implements VehiculeService {
         return vehiculeMapper.toResponse(findEntityById(id));
     }
 
+    // We'll inject ChauffeurRepository and UtilisateurRepository using field injection to avoid messing with constructor
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.transport.tms.repository.fleet.ChauffeurRepository chauffeurRepository;
+    
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.transport.tms.repository.UtilisateurRepository utilisateurRepository;
+
+    private com.transport.tms.domain.entity.fleet.Chauffeur resolveChauffeurFromConnectedUser() {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+        boolean isChauffeur = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CHAUFFEUR"));
+        if (!isChauffeur) return null;
+        String username = auth.getName();
+        return utilisateurRepository.findByEmailOrUsername(username, username)
+                .flatMap(u -> chauffeurRepository.findByUtilisateurId(u.getId()))
+                .orElse(null);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public Page<VehiculeResponse> findAll(Pageable pageable) {
-       // return vehiculeRepository.findByActifTrue(pageable)
-        return  vehiculeRepository.findAll( pageable)
+        com.transport.tms.domain.entity.fleet.Chauffeur chauffeur = resolveChauffeurFromConnectedUser();
+        if (chauffeur != null) {
+            return vehiculeRepository.findByChauffeurAffecteId(chauffeur.getId(), pageable)
+                    .map(vehiculeMapper::toResponse);
+        }
+        return vehiculeRepository.findAll(pageable)
                 .map(vehiculeMapper::toResponse);
     }
 

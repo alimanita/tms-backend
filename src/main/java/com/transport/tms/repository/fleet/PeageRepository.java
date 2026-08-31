@@ -12,6 +12,7 @@ import java.util.List;
 public interface PeageRepository extends JpaRepository<Peage, Long> {
     List<Peage> findByVehiculeId(Long vehiculeId);
     List<Peage> findByChauffeurId(Long chauffeurId);
+    Page<Peage> findByChauffeurId(Long chauffeurId, Pageable pageable);
     List<Peage> findByMissionId(Long missionId);
     Page<Peage> findAll(Pageable pageable);
 

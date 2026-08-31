@@ -29,6 +29,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.transport.tms.domain.entity.Utilisateur;
+import com.transport.tms.repository.UtilisateurRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -41,10 +46,28 @@ public class PeageServiceImpl implements PeageService {
     private final MissionRepository missionRepository;
     private final FileStorageService fileStorageService;
     private final ReceiptOcrService receiptOcrService;
+    private final UtilisateurRepository utilisateurRepository;
+
+    private Chauffeur resolveChauffeurFromConnectedUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+        boolean isChauffeur = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CHAUFFEUR"));
+        if (!isChauffeur) return null;
+        String username = auth.getName();
+        return utilisateurRepository.findByEmailOrUsername(username, username)
+                .flatMap(u -> chauffeurRepository.findByUtilisateurId(u.getId()))
+                .orElse(null);
+    }
 
     @Override
     @Transactional(readOnly = true)
     public Page<PeageResponse> findAll(Pageable pageable) {
+        Chauffeur chauffeur = resolveChauffeurFromConnectedUser();
+        if (chauffeur != null) {
+            return peageRepository.findByChauffeurId(chauffeur.getId(), pageable)
+                    .map(peageMapper::toResponse);
+        }
         return peageRepository.findAll(pageable).map(peageMapper::toResponse);
     }
 

@@ -191,6 +191,13 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
     @Override
     @Transactional(readOnly = true)
     public Page<PleinCarburantResponse> findAll(Pageable pageable) {
+        Chauffeur chauffeur = resolveChauffeurFromConnectedUser();
+        if (chauffeur != null) {
+            // ROLE_CHAUFFEUR → uniquement ses propres pleins
+            return pleinRepository.findByChauffeurId(chauffeur.getId(), pageable)
+                    .map(mapper::toResponse);
+        }
+        // Admin / Gestionnaire → tous les pleins
         return pleinRepository.findAll(pageable).map(mapper::toResponse);
     }
 

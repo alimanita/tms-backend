@@ -22,6 +22,7 @@ public interface VehiculeRepository extends JpaRepository<Vehicule, Long> {
     List<Vehicule> findByStatutAndActifTrue(StatutVehicule statut);
     List<Vehicule> findByStatutAndActifTrueOrderByReferenceAsc(StatutVehicule statut);
     long countByActifTrue();
+    Page<Vehicule> findByChauffeurAffecteId(Long chauffeurId, Pageable pageable);
 
     @Query("""
             SELECT CONCAT(v.reference, ' — ', v.marque, ' ', v.modele)
