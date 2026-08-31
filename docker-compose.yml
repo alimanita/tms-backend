@@ -17,7 +17,7 @@ services:
 
   tms-backend:
     build: .
-    container_name: tms-backend
+    container_name: backend-tms
     restart: always
     depends_on:
       - tms-db
