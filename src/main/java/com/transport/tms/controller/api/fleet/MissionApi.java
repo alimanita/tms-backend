@@ -86,4 +86,8 @@ public interface MissionApi {
 
     @GetMapping("/depenses/tolls")
     ResponseEntity<Page<DepenseMissionResponse>> findAllTolls(Pageable pageable);
+
+    @PostMapping(value = "/extract-ai", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<com.transport.tms.dto.fleet.response.OcrMissionResult> extractMissionData(
+            @RequestPart("file") org.springframework.web.multipart.MultipartFile file);
 }

@@ -16,6 +16,17 @@ public record MissionResponse(
     String vehiculeImmatriculation,
     java.util.List<Long> chauffeurIds,
     String chauffeursNoms,
+    
+    String modeExecution,
+    Long partenaireId,
+    String partenaireNom,
+    BigDecimal tauxCommission,
+    BigDecimal montantCommission,
+    BigDecimal montantReversePartenaire,
+    String externeCamion,
+    String externeChauffeur,
+    String statutSousTraitance,
+
     Mission.StatutMission statut,
     String departureLocation,
     String arrivalLocation,

@@ -11,6 +11,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.transport.tms.domain.enums.ModeExecution;
+import com.transport.tms.domain.enums.StatutSousTraitance;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,8 +36,37 @@ public class Mission {
     private Long clientId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vehicle_id", nullable = false)
+    @JoinColumn(name = "vehicle_id", nullable = true)
     private Vehicule vehicule;
+
+    // --- Champs Sous-Traitance ---
+    @Enumerated(EnumType.STRING)
+    @Column(name = "mode_execution", length = 20)
+    private ModeExecution modeExecution = ModeExecution.INTERNAL;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partenaire_id")
+    private SocietePartenaire partenaire;
+
+    @Column(name = "taux_commission", precision = 5, scale = 2)
+    private BigDecimal tauxCommission;
+
+    @Column(name = "montant_commission", precision = 15, scale = 2)
+    private BigDecimal montantCommission;
+
+    @Column(name = "montant_reverse_partenaire", precision = 15, scale = 2)
+    private BigDecimal montantReversePartenaire;
+
+    @Column(name = "externe_camion", length = 100)
+    private String externeCamion;
+
+    @Column(name = "externe_chauffeur", length = 100)
+    private String externeChauffeur;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut_sous_traitance", length = 20)
+    private StatutSousTraitance statutSousTraitance;
+    // -----------------------------
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

@@ -79,6 +79,15 @@
           }
         },
         {
+          "route": "/fleet/partenaires",
+          "name": "Partenaires",
+          "type": "link",
+          "icon": "handshake",
+          "permissions": {
+            "only": ["ADMIN", "SUPERADMIN", "SUPER_ADMIN", "MANAGER"]
+          }
+        },
+        {
           "route": "/fleet/maintenances",
           "name": "Entretien & Vidanges",
           "type": "link",
@@ -92,15 +101,6 @@
           "name": "Pièces détachées",
           "type": "link",
           "icon": "extension"
-        },
-        {
-          "route": "/fleet/chauffeurs",
-          "name": "Fiches de paie chauffeurs",
-          "type": "link",
-          "icon": "receipt",
-          "permissions": {
-            "only": ["COMPTABLE", "ADMIN", "SUPERADMIN", "SUPER_ADMIN"]
-          }
         },
         {
           "route": "/fleet/changement-huile",

@@ -81,7 +81,8 @@ public class SecurityConfig {
                                 "/api/v1/fleet/ordres-travail/**",
                                 "/api/v1/fleet/pieces-rechange/**",
                                 "/api/v1/fleet/notifications/**",
-                                "/api/v1/fleet/pneus/**"
+                                "/api/v1/fleet/pneus/**",
+                                "/api/v1/fleet/partenaires/**"
                         )
                         .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR", "COMPTABLE")
                         .requestMatchers("/api/v1/**")

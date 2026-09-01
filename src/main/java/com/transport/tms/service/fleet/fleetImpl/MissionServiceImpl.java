@@ -4,6 +4,8 @@ import com.transport.tms.domain.entity.Utilisateur;
 import com.transport.tms.domain.entity.fleet.Chauffeur;
 import com.transport.tms.domain.entity.fleet.DepenseMission;
 import com.transport.tms.domain.entity.fleet.Mission;
+import com.transport.tms.domain.entity.fleet.PleinCarburant;
+import com.transport.tms.domain.entity.fleet.SocietePartenaire;
 import com.transport.tms.domain.entity.fleet.Vehicule;
 import com.transport.tms.domain.enums.StatutChauffeur;
 import com.transport.tms.domain.enums.StatutVehicule;
@@ -17,7 +19,7 @@ import com.transport.tms.repository.fleet.ChauffeurRepository;
 import com.transport.tms.repository.fleet.DepenseMissionRepository;
 import com.transport.tms.repository.fleet.MissionRepository;
 import com.transport.tms.repository.fleet.PleinCarburantRepository;
-import com.transport.tms.domain.entity.fleet.PleinCarburant;
+import com.transport.tms.repository.fleet.SocietePartenaireRepository;
 import com.transport.tms.repository.fleet.VehiculeRepository;
 import com.transport.tms.security.UserPrincipal;
 import com.transport.tms.service.fleet.FileStorageService;
@@ -51,6 +53,7 @@ public class MissionServiceImpl implements MissionService {
     private final ChauffeurRepository chauffeurRepository;
     private final DepenseMissionRepository depenseMissionRepository;
     private final PleinCarburantRepository pleinCarburantRepository;
+    private final SocietePartenaireRepository partenaireRepository;
     private final FileStorageService fileStorageService;
     private final MissionMapper mapper;
 
@@ -74,23 +77,11 @@ public class MissionServiceImpl implements MissionService {
     }
     @Override
     public MissionResponse create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
-        Vehicule vehicule = findVehiculeById(request.vehiculeId());
-        
-        List<Chauffeur> chauffeurs = new ArrayList<>();
-        for (Long chauffeurId : request.chauffeurIds()) {
-            Chauffeur c = findChauffeurById(chauffeurId);
-            validerPermisVehicule(c);
-            chauffeurs.add(c);
-        }
-
-        // Règles métier VM-01
-        validerDisponibiliteVehicule(vehicule);
-
         Mission mission = mapper.toEntity(request);
         mission.setReference(generateReference());
-        mission.setVehicule(vehicule);
-        mission.setChauffeurs(chauffeurs);
         mission.setStatut(Mission.StatutMission.PLANNED);
+
+        applyExecutionModeRules(mission, request);
 
         if (letter != null && !letter.isEmpty()) {
             String filePath = fileStorageService.store(letter);
@@ -104,24 +95,11 @@ public class MissionServiceImpl implements MissionService {
     public MissionResponse update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
         Mission mission = findEntityById(id);
         if (mission.getStatut() != Mission.StatutMission.PLANNED) {
-            throw new InvalidOperationException(
-                    "Une mission ne peut être modifiée qu'en statut PLANNED");
+            throw new InvalidOperationException("Une mission ne peut être modifiée qu'en statut PLANNED");
         }
         mapper.updateEntity(mission, request);
 
-        if (!mission.getVehicule().getId().equals(request.vehiculeId())) {
-            Vehicule vehicule = findVehiculeById(request.vehiculeId());
-            validerDisponibiliteVehicule(vehicule);
-            mission.setVehicule(vehicule);
-        }
-        
-        List<Chauffeur> chauffeurs = new ArrayList<>();
-        for (Long chauffeurId : request.chauffeurIds()) {
-            Chauffeur c = findChauffeurById(chauffeurId);
-            validerPermisVehicule(c);
-            chauffeurs.add(c);
-        }
-        mission.setChauffeurs(chauffeurs);
+        applyExecutionModeRules(mission, request);
 
         if (letter != null && !letter.isEmpty()) {
             String filePath = fileStorageService.store(letter);
@@ -129,6 +107,78 @@ public class MissionServiceImpl implements MissionService {
         }
 
         return mapper.toResponse(missionRepository.save(mission));
+    }
+
+    private void applyExecutionModeRules(Mission mission, MissionRequest request) {
+        String modeStr = request.modeExecution() != null ? request.modeExecution() : "INTERNAL";
+        com.transport.tms.domain.enums.ModeExecution mode = com.transport.tms.domain.enums.ModeExecution.valueOf(modeStr);
+        mission.setModeExecution(mode);
+
+        if (mode == com.transport.tms.domain.enums.ModeExecution.SUBCONTRACTED) {
+            mission.setVehicule(null);
+            mission.setChauffeurs(new ArrayList<>());
+            
+            if (request.partenaireId() == null) {
+                throw new InvalidOperationException("Un partenaire est requis pour une mission sous-traitée");
+            }
+            SocietePartenaire partenaire = partenaireRepository.findById(request.partenaireId())
+                    .orElseThrow(() -> new EntityNotFoundException("Partenaire introuvable"));
+            mission.setPartenaire(partenaire);
+            mission.setExterneCamion(request.externeCamion());
+            mission.setExterneChauffeur(request.externeChauffeur());
+            
+            if (mission.getStatutSousTraitance() == null) {
+                mission.setStatutSousTraitance(com.transport.tms.domain.enums.StatutSousTraitance.PROPOSED);
+            }
+
+            java.math.BigDecimal taux = request.tauxCommission();
+            if (taux == null && partenaire.getTauxCommissionDefaut() != null) {
+                taux = partenaire.getTauxCommissionDefaut();
+            }
+            mission.setTauxCommission(taux);
+            
+            if (mission.getRevenue() != null && taux != null) {
+                java.math.BigDecimal montantComm = mission.getRevenue().multiply(taux).divide(new java.math.BigDecimal("100"));
+                mission.setMontantCommission(montantComm);
+                mission.setMontantReversePartenaire(mission.getRevenue().subtract(montantComm));
+            } else {
+                mission.setMontantCommission(null);
+                mission.setMontantReversePartenaire(null);
+            }
+
+        } else {
+            // Mode INTERNAL
+            mission.setPartenaire(null);
+            mission.setTauxCommission(null);
+            mission.setMontantCommission(null);
+            mission.setMontantReversePartenaire(null);
+            mission.setExterneCamion(null);
+            mission.setExterneChauffeur(null);
+            mission.setStatutSousTraitance(null);
+
+            if (request.vehiculeId() == null) {
+                throw new InvalidOperationException("Un véhicule est requis pour une mission interne");
+            }
+            Vehicule vehicule = findVehiculeById(request.vehiculeId());
+            // Valider que si on change de vehicule ou nouvelle mission
+            if (mission.getVehicule() == null || !mission.getVehicule().getId().equals(vehicule.getId())) {
+                validerDisponibiliteVehicule(vehicule);
+            }
+            mission.setVehicule(vehicule);
+            
+            List<Chauffeur> chauffeurs = new ArrayList<>();
+            if (request.chauffeurIds() != null) {
+                for (Long chauffeurId : request.chauffeurIds()) {
+                    Chauffeur c = findChauffeurById(chauffeurId);
+                    validerPermisVehicule(c);
+                    chauffeurs.add(c);
+                }
+            }
+            if (chauffeurs.isEmpty()) {
+                throw new InvalidOperationException("Au moins un chauffeur est requis pour une mission interne");
+            }
+            mission.setChauffeurs(chauffeurs);
+        }
     }
 
     @Override

@@ -322,4 +322,115 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
             throw new InvalidOperationException("Erreur lors de l'analyse du ticket: " + e.getMessage());
         }
     }
+
+    @Override
+    public com.transport.tms.dto.fleet.response.OcrMissionResult extractMissionData(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            throw new InvalidOperationException("L'image fournie est vide ou nulle.");
+        }
+
+        if (anthropicApiKey == null || anthropicApiKey.isEmpty()) {
+            throw new InvalidOperationException("La clé API Anthropic n'est pas configurée.");
+        }
+
+        try {
+            String base64Image = Base64.getEncoder().encodeToString(image.getBytes());
+            String mimeType = image.getContentType();
+            if (mimeType == null || !mimeType.startsWith("image/")) {
+                mimeType = "image/jpeg";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-api-key", anthropicApiKey);
+            headers.set("anthropic-version", "2023-06-01");
+
+            Map<String, Object> source = new HashMap<>();
+            source.put("type", "base64");
+            source.put("media_type", mimeType);
+            source.put("data", base64Image);
+
+            Map<String, Object> imageContent = new HashMap<>();
+            imageContent.put("type", "image");
+            imageContent.put("source", source);
+
+            Map<String, Object> textContent = new HashMap<>();
+            textContent.put("type", "text");
+            textContent.put("text",
+                "Analyse ce document de transport (ordre de mission, bon de commande, fiche Amazon Relay, email de transport, screenshot d'application logistique, etc.). " +
+                "Extrais toutes les informations disponibles et renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés : " +
+                "'title' (chaîne, ex: numéro de chargement ou référence, comme '1135PDCHP' ou 'Mission Paris-Lyon'), " +
+                "'departureLocation' (chaîne, ville ou adresse complète de départ, ex: 'XOR4 Saint Sauveur, Hauts-de-France'), " +
+                "'arrivalLocation' (chaîne, ville ou adresse complète d'arrivée, ex: 'BCN8 Sabadell, Barcelona'), " +
+                "'plannedDeparture' (chaîne au format ISO 8601 YYYY-MM-DDTHH:mm:ss, date et heure de départ), " +
+                "'plannedReturn' (chaîne au format ISO 8601 YYYY-MM-DDTHH:mm:ss si date de retour/arrivée visible, sinon null), " +
+                "'revenue' (nombre décimal, le montant total à facturer en euros ou dinars, ex: 2698.99), " +
+                "'cargoDescription' (chaîne décrivant le type de fret ou de transport, ex: 'Semi-remorque', 'Palettes', null si inconnu), " +
+                "'notes' (chaîne avec toutes autres informations utiles comme le nom des chauffeurs ou commentaires, null si rien)."
+            );
+
+            Map<String, Object> message = new HashMap<>();
+            message.put("role", "user");
+            message.put("content", List.of(imageContent, textContent));
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("model", anthropicModel);
+            body.put("max_tokens", 1024);
+            body.put("messages", List.of(message));
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    "https://api.anthropic.com/v1/messages",
+                    requestEntity,
+                    String.class
+            );
+
+            JsonNode rootNode = objectMapper.readTree(response.getBody());
+            String assistantReply = rootNode.path("content").get(0).path("text").asText();
+
+            assistantReply = assistantReply.replaceAll("(?s)^```json\\s*", "");
+            assistantReply = assistantReply.replaceAll("(?s)\\s*```$", "");
+
+            log.info("Anthropic raw response (Mission): {}", assistantReply);
+
+            JsonNode jsonResult = objectMapper.readTree(assistantReply);
+
+            return com.transport.tms.dto.fleet.response.OcrMissionResult.builder()
+                    .title(jsonResult.path("title").asText(null))
+                    .departureLocation(jsonResult.path("departureLocation").asText(null))
+                    .arrivalLocation(jsonResult.path("arrivalLocation").asText(null))
+                    .plannedDeparture(getLocalDateTimeNodeFromField(jsonResult, "plannedDeparture"))
+                    .plannedReturn(getLocalDateTimeNodeFromField(jsonResult, "plannedReturn"))
+                    .revenue(getBigDecimalNode(jsonResult, "revenue"))
+                    .cargoDescription(jsonResult.path("cargoDescription").asText(null))
+                    .notes(jsonResult.path("notes").asText(null))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Erreur lors de l'extraction OCR via Anthropic (Mission)", e);
+            throw new InvalidOperationException("Erreur lors de l'analyse du document de mission: " + e.getMessage());
+        }
+    }
+
+    private LocalDateTime getLocalDateTimeNodeFromField(JsonNode node, String fieldName) {
+        JsonNode fieldNode = node.path(fieldName);
+        if (fieldNode.isMissingNode() || fieldNode.isNull() || fieldNode.asText().isEmpty() || "null".equals(fieldNode.asText())) {
+            return null;
+        }
+        String raw = fieldNode.asText().trim();
+        try {
+            // Try full ISO datetime
+            return LocalDateTime.parse(raw, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        } catch (Exception e1) {
+            try {
+                // Try date only
+                LocalDate d = LocalDate.parse(raw, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+                return d.atStartOfDay();
+            } catch (Exception e2) {
+                log.warn("Impossible de parser la date/heure '{}', champ ignoré.", raw);
+                return null;
+            }
+        }
+    }
 }

@@ -13,12 +13,15 @@ public record MissionRequest(
 
     Long clientId,
 
-    @NotNull(message = "Le véhicule est obligatoire")
     Long vehiculeId,
 
-    @NotNull(message = "Au moins un chauffeur est obligatoire")
-    @NotEmpty(message = "La liste des chauffeurs ne peut pas être vide")
     java.util.List<Long> chauffeurIds,
+
+    String modeExecution,
+    Long partenaireId,
+    BigDecimal tauxCommission,
+    String externeCamion,
+    String externeChauffeur,
 
     @NotBlank(message = "Le lieu de départ est obligatoire")
     String departureLocation,

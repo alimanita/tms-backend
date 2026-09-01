@@ -7,6 +7,7 @@ import com.transport.tms.dto.fleet.request.MissionRequest;
 import com.transport.tms.dto.fleet.response.DepenseMissionResponse;
 import com.transport.tms.dto.fleet.response.MissionResponse;
 import com.transport.tms.service.fleet.MissionService;
+import com.transport.tms.service.fleet.ReceiptOcrService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
@@ -22,6 +23,7 @@ import java.util.List;
 public class MissionController implements MissionApi {
 
     private final MissionService missionService;
+    private final ReceiptOcrService receiptOcrService;
 
     @Override
     public ResponseEntity<Page<MissionResponse>> findAll(Pageable pageable) {
@@ -148,5 +150,11 @@ public class MissionController implements MissionApi {
     @Override
     public ResponseEntity<Page<DepenseMissionResponse>> findAllTolls(Pageable pageable) {
         return ResponseEntity.ok(missionService.findAllTolls(pageable));
+    }
+
+    @Override
+    public ResponseEntity<com.transport.tms.dto.fleet.response.OcrMissionResult> extractMissionData(
+            org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(receiptOcrService.extractMissionData(file));
     }
 }
