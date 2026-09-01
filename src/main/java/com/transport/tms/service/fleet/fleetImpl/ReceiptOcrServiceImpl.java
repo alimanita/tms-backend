@@ -364,9 +364,10 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
                 "'arrivalLocation' (chaîne, ville ou adresse complète d'arrivée, ex: 'BCN8 Sabadell, Barcelona'), " +
                 "'plannedDeparture' (chaîne au format ISO 8601 YYYY-MM-DDTHH:mm:ss, date et heure de départ), " +
                 "'plannedReturn' (chaîne au format ISO 8601 YYYY-MM-DDTHH:mm:ss si date de retour/arrivée visible, sinon null), " +
-                "'revenue' (nombre décimal, le montant total à facturer en euros ou dinars, ex: 2698.99), " +
+                "'revenue' (nombre décimal avec point comme séparateur décimal — ATTENTION : si tu vois '€2698,99' ou '2698,99' le montant est 2698.99 (deux-mille-six-cent-quatre-vingt-dix-huit euros quatre-vingt-dix-neuf cents), si tu vois '€698,99' c'est 698.99. La virgule est le séparateur décimal en format européen. Lis TOUS les chiffres avant la virgule, ne coupe pas le montant. Exemple Amazon Relay: '€2698,99' => 2698.99, '€1 234,56' => 1234.56), " +
                 "'cargoDescription' (chaîne décrivant le type de fret ou de transport, ex: 'Semi-remorque', 'Palettes', null si inconnu), " +
-                "'notes' (chaîne avec toutes autres informations utiles comme le nom des chauffeurs ou commentaires, null si rien)."
+                "'notes' (chaîne avec toutes autres informations utiles comme le nom des chauffeurs ou commentaires, null si rien). " +
+                "IMPORTANT pour le champ 'revenue': recopie l'intégralité du montant visible sur le document, chiffre par chiffre, avant de le convertir."
             );
 
             Map<String, Object> message = new HashMap<>();
