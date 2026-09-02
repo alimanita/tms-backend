@@ -143,7 +143,8 @@ public class DocumentFlotteServiceImpl implements DocumentFlotteService {
     }
 
     private String resolveEntityRef(DocumentFlotte.TypeEntite type, Long entityId) {
-        // Simplifié — à enrichir avec les vrais repos si besoin
+        if (type == null) return "N/A";
+        if (entityId == null) return type.name();
         return type.name() + " #" + entityId;
     }
 }

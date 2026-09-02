@@ -33,7 +33,7 @@ public class DocumentFlotte {
     @Enumerated(EnumType.STRING)
     private TypeEntite entityType;
 
-    @Column(name = "entity_id", nullable = false)
+    @Column(name = "entity_id", nullable = true)
     private Long entityId;
 
     @Column(name = "reference_number", length = 100)

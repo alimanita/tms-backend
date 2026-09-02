@@ -18,7 +18,6 @@ public record DocumentFlotteRequest(
     @NotNull
     DocumentFlotte.TypeEntite entityType,
 
-    @NotNull
     Long entityId,
 
     @Size(max = 100)
