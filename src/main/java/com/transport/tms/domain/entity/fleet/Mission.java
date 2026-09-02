@@ -68,13 +68,8 @@ public class Mission {
     private StatutSousTraitance statutSousTraitance;
     // -----------------------------
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "mission_chauffeur",
-            joinColumns = @JoinColumn(name = "mission_id"),
-            inverseJoinColumns = @JoinColumn(name = "chauffeur_id")
-    )
-    private List<Chauffeur> chauffeurs = new ArrayList<>();
+    @OneToMany(mappedBy = "mission", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MissionChauffeurSlot> chauffeurSlots = new ArrayList<>();
 
     @Column(length = 30)
     @Enumerated(EnumType.STRING)

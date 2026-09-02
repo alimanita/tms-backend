@@ -34,16 +34,16 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
     Page<Mission> findByVehiculeId(Long vehiculeId, Pageable pageable);
 
     // Par chauffeur
-    List<Mission> findByChauffeursIdOrderByPlannedDepartureDesc(Long chauffeurId);
+    List<Mission> findByChauffeurSlotsChauffeurIdOrderByPlannedDepartureDesc(Long chauffeurId);
 
-    Page<Mission> findByChauffeursId(Long chauffeurId, Pageable pageable);
+    Page<Mission> findByChauffeurSlotsChauffeurId(Long chauffeurId, Pageable pageable);
 
     // Missions en cours pour un véhicule (vérification disponibilité)
     boolean existsByVehiculeIdAndStatutIn(
             Long vehiculeId, List<Mission.StatutMission> statuts);
 
     // Missions en cours pour un chauffeur
-    boolean existsByChauffeursIdAndStatutIn(
+    boolean existsByChauffeurSlotsChauffeurIdAndStatutIn(
             Long chauffeurId, List<Mission.StatutMission> statuts);
 
     // Missions entre deux dates
@@ -86,20 +86,20 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
             ORDER BY m.plannedDeparture ASC
             """)
     List<Mission> findEnAttenteApprobation();
-    long countByChauffeursIdAndStatut(Long chauffeurId, Mission.StatutMission statut);
+    long countByChauffeurSlotsChauffeurIdAndStatut(Long chauffeurId, Mission.StatutMission statut);
 
-    long countByChauffeursIdAndStatutAndActualReturnBetween(
+    long countByChauffeurSlotsChauffeurIdAndStatutAndActualReturnBetween(
             Long chauffeurId, Mission.StatutMission statut,
             LocalDateTime debut, LocalDateTime fin);
 
     // --- Aggregations pour les Rapports ---
-    @Query("SELECT CONCAT(c.prenom, ' ', c.nom), COUNT(m) FROM Mission m JOIN m.chauffeurs c GROUP BY c.id, c.prenom, c.nom")
+    @Query("SELECT CONCAT(c.prenom, ' ', c.nom), COUNT(m) FROM Mission m JOIN m.chauffeurSlots cs JOIN cs.chauffeur c GROUP BY c.id, c.prenom, c.nom")
     List<Object[]> countMissionsByDriver();
 
     @Query("SELECT m.statut, COUNT(m) FROM Mission m GROUP BY m.statut")
     List<Object[]> countMissionsByStatus();
 
-    @Query("SELECT CONCAT(c.prenom, ' ', c.nom), SUM(m.mileageAtReturn - m.mileageAtDeparture) FROM Mission m JOIN m.chauffeurs c WHERE m.mileageAtReturn IS NOT NULL AND m.mileageAtDeparture IS NOT NULL GROUP BY c.id, c.prenom, c.nom")
+    @Query("SELECT CONCAT(c.prenom, ' ', c.nom), SUM(m.mileageAtReturn - m.mileageAtDeparture) FROM Mission m JOIN m.chauffeurSlots cs JOIN cs.chauffeur c WHERE m.mileageAtReturn IS NOT NULL AND m.mileageAtDeparture IS NOT NULL GROUP BY c.id, c.prenom, c.nom")
     List<Object[]> sumMileageByDriver();
 
     @Query("SELECT EXTRACT(MONTH FROM m.actualReturn), SUM(m.revenue) FROM Mission m WHERE m.statut = 'COMPLETED' AND m.actualReturn IS NOT NULL GROUP BY EXTRACT(MONTH FROM m.actualReturn)")
@@ -151,7 +151,7 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
         FROM Mission m
         WHERE m.statut = 'COMPLETED'
         AND m.actualReturn IS NOT NULL
-        AND (:chauffeurId IS NULL OR EXISTS (SELECT 1 FROM m.chauffeurs c WHERE c.id = :chauffeurId))
+        AND (:chauffeurId IS NULL OR EXISTS (SELECT 1 FROM m.chauffeurSlots cs JOIN cs.chauffeur c WHERE c.id = :chauffeurId))
         AND m.actualReturn BETWEEN :debut AND :fin
         GROUP BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
         ORDER BY EXTRACT(YEAR FROM m.actualReturn), EXTRACT(MONTH FROM m.actualReturn)
@@ -166,7 +166,7 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
         SELECT c.id, c.nom, c.prenom, c.valeurSalaire, c.typeSalaire,
                COALESCE(SUM(m.revenue), 0), COALESCE(SUM(m.totalCost), 0), COUNT(m)
         FROM Mission m
-        JOIN m.chauffeurs c
+        JOIN m.chauffeurSlots cs JOIN cs.chauffeur c
         WHERE m.statut = 'COMPLETED'
         AND m.actualReturn IS NOT NULL
         AND m.actualReturn BETWEEN :debut AND :fin
@@ -180,7 +180,7 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
     @Query("""
         SELECT m.id, m.reference, m.actualReturn, m.revenue, m.totalCost
         FROM Mission m
-        JOIN m.chauffeurs c
+        JOIN m.chauffeurSlots cs JOIN cs.chauffeur c
         WHERE m.statut = 'COMPLETED'
         AND m.actualReturn IS NOT NULL
         AND c.id = :chauffeurId
@@ -217,4 +217,5 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
             @Param("anDebut") int anDebut,
             @Param("anFin") int anFin);
 
-}
+}
+

@@ -61,6 +61,11 @@ public class MissionController implements MissionApi {
                 .body(file);
     }
 
+    @Override
+    public ResponseEntity<MissionResponse> uploadLetter(Long id, org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(missionService.uploadLetter(id, file));
+    }
+
 /*    @Override
     public ResponseEntity<MissionResponse> soumettre(Long id) {
         return ResponseEntity.ok(missionService.soumettre(id));

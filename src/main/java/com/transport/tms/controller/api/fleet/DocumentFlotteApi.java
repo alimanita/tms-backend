@@ -48,4 +48,8 @@ public interface DocumentFlotteApi {
 
     @GetMapping("/{id}/file")
     ResponseEntity<org.springframework.core.io.Resource> downloadFile(@PathVariable Long id);
+
+    @PostMapping(value = "/extract-ai", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<com.transport.tms.dto.fleet.response.OcrDocumentResult> extractAi(
+            @RequestPart("file") org.springframework.web.multipart.MultipartFile file);
 }

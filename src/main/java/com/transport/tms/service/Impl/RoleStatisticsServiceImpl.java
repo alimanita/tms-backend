@@ -94,10 +94,10 @@ public class RoleStatisticsServiceImpl implements RoleStatisticsService {
                 }
 
                 missionsEnCours = missionRepository
-                        .countByChauffeursIdAndStatut(chauffeur.getId(), Mission.StatutMission.IN_PROGRESS);
+                        .countByChauffeurSlotsChauffeurIdAndStatut(chauffeur.getId(), Mission.StatutMission.IN_PROGRESS);
 
                 missionsTerminees = missionRepository
-                        .countByChauffeursIdAndStatutAndActualReturnBetween(
+                        .countByChauffeurSlotsChauffeurIdAndStatutAndActualReturnBetween(
                                 chauffeur.getId(), Mission.StatutMission.COMPLETED,
                                 debutMoisLdt, finMoisLdt);
 

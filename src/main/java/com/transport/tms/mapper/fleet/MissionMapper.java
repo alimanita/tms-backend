@@ -43,15 +43,18 @@ public class MissionMapper {
     }
 
     public MissionResponse toResponse(Mission mission) {
-        java.util.List<Long> chauffeurIds = new java.util.ArrayList<>();
-        java.util.List<String> chauffeursNomsList = new java.util.ArrayList<>();
-        if (mission.getChauffeurs() != null && !mission.getChauffeurs().isEmpty()) {
-            for (com.transport.tms.domain.entity.fleet.Chauffeur c : mission.getChauffeurs()) {
-                chauffeurIds.add(c.getId());
-                chauffeursNomsList.add(c.getNom() + " " + c.getPrenom());
+        java.util.List<com.transport.tms.dto.fleet.response.ChauffeurSlotResponse> chauffeurSlots = new java.util.ArrayList<>();
+        if (mission.getChauffeurSlots() != null && !mission.getChauffeurSlots().isEmpty()) {
+            for (com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot : mission.getChauffeurSlots()) {
+                com.transport.tms.domain.entity.fleet.Chauffeur c = slot.getChauffeur();
+                chauffeurSlots.add(new com.transport.tms.dto.fleet.response.ChauffeurSlotResponse(
+                        c.getId(),
+                        c.getNom() + " " + c.getPrenom(),
+                        slot.getHeureDebut(),
+                        slot.getHeureFin()
+                ));
             }
         }
-        String chauffeursNoms = String.join(", ", chauffeursNomsList);
 
         String letterUrl = null;
         if (mission.getLetterMissionPath() != null && !mission.getLetterMissionPath().isBlank()) {
@@ -70,8 +73,7 @@ public class MissionMapper {
                 mission.getVehicule() != null ? mission.getVehicule().getId() : null,
                 mission.getVehicule() != null ? mission.getVehicule().getReference() : null,
                 mission.getVehicule() != null ? mission.getVehicule().getImmatriculation() : null,
-                chauffeurIds,
-                chauffeursNoms,
+                chauffeurSlots,
                 mission.getModeExecution() != null ? mission.getModeExecution().name() : null,
                 mission.getPartenaire() != null ? mission.getPartenaire().getId() : null,
                 mission.getPartenaire() != null ? mission.getPartenaire().getNom() : null,

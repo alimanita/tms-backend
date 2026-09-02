@@ -97,7 +97,12 @@ public class MissionServiceImpl implements MissionService {
         if (mission.getStatut() != Mission.StatutMission.PLANNED) {
             throw new InvalidOperationException("Une mission ne peut être modifiée qu'en statut PLANNED");
         }
+        
         mapper.updateEntity(mission, request);
+        
+        // Retain reference and status
+        mission.setReference(mission.getReference());
+        // mission.setStatut(Mission.StatutMission.PLANNED); 
 
         applyExecutionModeRules(mission, request);
 
@@ -109,6 +114,19 @@ public class MissionServiceImpl implements MissionService {
         return mapper.toResponse(missionRepository.save(mission));
     }
 
+    @Override
+    public MissionResponse uploadLetter(Long id, org.springframework.web.multipart.MultipartFile file) {
+        Mission mission = findEntityById(id);
+        if (mission.getStatut() != Mission.StatutMission.PLANNED && mission.getStatut() != Mission.StatutMission.IN_PROGRESS) {
+            throw new InvalidOperationException("La lettre de mission ne peut être ajoutée qu'en statut PLANNED ou IN_PROGRESS");
+        }
+        if (file != null && !file.isEmpty()) {
+            String filePath = fileStorageService.store(file);
+            mission.setLetterMissionPath(filePath);
+        }
+        return mapper.toResponse(missionRepository.save(mission));
+    }
+
     private void applyExecutionModeRules(Mission mission, MissionRequest request) {
         String modeStr = request.modeExecution() != null ? request.modeExecution() : "INTERNAL";
         com.transport.tms.domain.enums.ModeExecution mode = com.transport.tms.domain.enums.ModeExecution.valueOf(modeStr);
@@ -116,7 +134,9 @@ public class MissionServiceImpl implements MissionService {
 
         if (mode == com.transport.tms.domain.enums.ModeExecution.SUBCONTRACTED) {
             mission.setVehicule(null);
-            mission.setChauffeurs(new ArrayList<>());
+            if (mission.getChauffeurSlots() != null) {
+                mission.getChauffeurSlots().clear();
+            }
             
             if (request.partenaireId() == null) {
                 throw new InvalidOperationException("Un partenaire est requis pour une mission sous-traitée");
@@ -166,18 +186,26 @@ public class MissionServiceImpl implements MissionService {
             }
             mission.setVehicule(vehicule);
             
-            List<Chauffeur> chauffeurs = new ArrayList<>();
-            if (request.chauffeurIds() != null) {
-                for (Long chauffeurId : request.chauffeurIds()) {
-                    Chauffeur c = findChauffeurById(chauffeurId);
+            if (mission.getChauffeurSlots() == null) {
+                mission.setChauffeurSlots(new ArrayList<>());
+            }
+            mission.getChauffeurSlots().clear();
+            
+            if (request.chauffeurs() != null) {
+                for (com.transport.tms.dto.fleet.request.ChauffeurSlotRequest slotReq : request.chauffeurs()) {
+                    Chauffeur c = findChauffeurById(slotReq.chauffeurId());
                     validerPermisVehicule(c);
-                    chauffeurs.add(c);
+                    com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot = new com.transport.tms.domain.entity.fleet.MissionChauffeurSlot();
+                    slot.setMission(mission);
+                    slot.setChauffeur(c);
+                    slot.setHeureDebut(parseSlotDateTime(slotReq.heureDebut()));
+                    slot.setHeureFin(parseSlotDateTime(slotReq.heureFin()));
+                    mission.getChauffeurSlots().add(slot);
                 }
             }
-            if (chauffeurs.isEmpty()) {
+            if (mission.getChauffeurSlots().isEmpty()) {
                 throw new InvalidOperationException("Au moins un chauffeur est requis pour une mission interne");
             }
-            mission.setChauffeurs(chauffeurs);
         }
     }
 
@@ -233,7 +261,7 @@ public class MissionServiceImpl implements MissionService {
             }
         }
 
-        return missionRepository.findByChauffeursIdOrderByPlannedDepartureDesc(chauffeurId)
+        return missionRepository.findByChauffeurSlotsChauffeurIdOrderByPlannedDepartureDesc(chauffeurId)
                 .stream().map(mapper::toResponse).toList();
     }
 
@@ -268,7 +296,8 @@ public class MissionServiceImpl implements MissionService {
         vehicule.setStatut(StatutVehicule.EN_MISSION);
         vehiculeRepository.save(vehicule);
 
-        for (Chauffeur chauffeur : mission.getChauffeurs()) {
+        for (com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot : mission.getChauffeurSlots()) {
+            Chauffeur chauffeur = slot.getChauffeur();
             chauffeur.setStatut(StatutChauffeur.EN_MISSION);
             chauffeurRepository.save(chauffeur);
         }
@@ -295,7 +324,8 @@ public class MissionServiceImpl implements MissionService {
         vehicule.setStatut(StatutVehicule.DISPONIBLE);
         vehiculeRepository.save(vehicule);
 
-        for (Chauffeur chauffeur : mission.getChauffeurs()) {
+        for (com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot : mission.getChauffeurSlots()) {
+            Chauffeur chauffeur = slot.getChauffeur();
             chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
             chauffeurRepository.save(chauffeur);
         }
@@ -315,7 +345,8 @@ public class MissionServiceImpl implements MissionService {
         if (mission.getStatut() == Mission.StatutMission.IN_PROGRESS) {
             mission.getVehicule().setStatut(StatutVehicule.DISPONIBLE);
             vehiculeRepository.save(mission.getVehicule());
-            for (Chauffeur chauffeur : mission.getChauffeurs()) {
+            for (com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot : mission.getChauffeurSlots()) {
+                Chauffeur chauffeur = slot.getChauffeur();
                 chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
                 chauffeurRepository.save(chauffeur);
             }
@@ -348,10 +379,10 @@ public class MissionServiceImpl implements MissionService {
 
         // Si la dépense est de type carburant, on ajoute un plein carburant automatiquement
         if (depense.getExpenseType() == DepenseMission.TypeDepense.FUEL) {
-            PleinCarburant plein = new PleinCarburant();
+            com.transport.tms.domain.entity.fleet.PleinCarburant plein = new com.transport.tms.domain.entity.fleet.PleinCarburant();
             plein.setReference("FUEL-" + System.currentTimeMillis());
             plein.setVehicule(mission.getVehicule());
-            plein.setChauffeur(mission.getChauffeurs().isEmpty() ? null : mission.getChauffeurs().get(0));
+            plein.setChauffeur(mission.getChauffeurSlots().isEmpty() ? null : mission.getChauffeurSlots().get(0).getChauffeur());
             plein.setFillingDate(depense.getExpenseDate());
             plein.setFuelType(mission.getVehicule().getTypeCarburant() != null ? mission.getVehicule().getTypeCarburant().name() : "DIESEL"); 
             plein.setQuantityLiters(request.quantityLiters() != null ? request.quantityLiters() : java.math.BigDecimal.ONE);
@@ -454,6 +485,18 @@ public class MissionServiceImpl implements MissionService {
                         "Véhicule introuvable avec l'ID = " + id));
     }
 
+    private java.time.LocalDateTime parseSlotDateTime(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            // Gérer "yyyy-MM-dd'T'HH:mm" (16 chars) ou "yyyy-MM-dd'T'HH:mm:ss"
+            if (s.length() == 16) s = s + ":00";
+            return java.time.LocalDateTime.parse(s, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        } catch (Exception e) {
+            log.warn("Impossible de parser la date/heure du créneau : {}", s);
+            return null;
+        }
+    }
+
     private Chauffeur findChauffeurById(Long id) {
         return chauffeurRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(
@@ -483,7 +526,7 @@ public class MissionServiceImpl implements MissionService {
         Chauffeur chauffeur = chauffeurRepository.findByUtilisateurId(utilisateur.getId())
                 .orElseThrow(() -> new AccessDeniedException("Aucun profil chauffeur lié à cet utilisateur"));
 
-        return missionRepository.findByChauffeursIdOrderByPlannedDepartureDesc(chauffeur.getId())
+        return missionRepository.findByChauffeurSlotsChauffeurIdOrderByPlannedDepartureDesc(chauffeur.getId())
                 .stream().map(mapper::toResponse).toList();
     }
 

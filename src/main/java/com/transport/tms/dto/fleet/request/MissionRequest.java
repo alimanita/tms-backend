@@ -15,7 +15,7 @@ public record MissionRequest(
 
     Long vehiculeId,
 
-    java.util.List<Long> chauffeurIds,
+    java.util.List<ChauffeurSlotRequest> chauffeurs,
 
     String modeExecution,
     Long partenaireId,

@@ -11,4 +11,5 @@ public interface ReceiptOcrService {
     OcrTollResult extractTollData(MultipartFile image);
     com.transport.tms.dto.fleet.response.OcrPieceResult extractPieceData(MultipartFile image);
     OcrMissionResult extractMissionData(MultipartFile image);
+    com.transport.tms.dto.fleet.response.OcrDocumentResult extractDocumentData(MultipartFile image);
 }

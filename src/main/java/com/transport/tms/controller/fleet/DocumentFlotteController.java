@@ -19,6 +19,7 @@ import java.util.List;
 public class DocumentFlotteController implements DocumentFlotteApi {
 
     private final DocumentFlotteService documentFlotteService;
+    private final com.transport.tms.service.fleet.ReceiptOcrService receiptOcrService;
 
     @Override
     public ResponseEntity<Page<DocumentFlotteResponse>> findAll(Pageable pageable) {
@@ -95,5 +96,11 @@ public class DocumentFlotteController implements DocumentFlotteApi {
                 .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFilename() + "\"")
                 .body(file);
+    }
+
+    @Override
+    public ResponseEntity<com.transport.tms.dto.fleet.response.OcrDocumentResult> extractAi(
+            org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(receiptOcrService.extractDocumentData(file));
     }
 }

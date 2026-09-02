@@ -434,4 +434,111 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
             }
         }
     }
+
+    @Override
+    public com.transport.tms.dto.fleet.response.OcrDocumentResult extractDocumentData(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            throw new InvalidOperationException("L'image fournie est vide ou nulle.");
+        }
+
+        if (anthropicApiKey == null || anthropicApiKey.isEmpty()) {
+            throw new InvalidOperationException("La clé API Anthropic n'est pas configurée.");
+        }
+
+        try {
+            String mimeType = image.getContentType();
+            if (mimeType == null) mimeType = "image/jpeg";
+
+            String base64Data = Base64.getEncoder().encodeToString(image.getBytes());
+
+            // Anthropic supporte images ET PDF (type "document")
+            boolean isPdf = mimeType.equals("application/pdf");
+
+            Map<String, Object> fileSource = new HashMap<>();
+            fileSource.put("type", "base64");
+            fileSource.put("media_type", isPdf ? "application/pdf" : mimeType);
+            fileSource.put("data", base64Data);
+
+            Map<String, Object> fileContent = new HashMap<>();
+            fileContent.put("type", isPdf ? "document" : "image");
+            fileContent.put("source", fileSource);
+
+            Map<String, Object> textContent = new HashMap<>();
+            textContent.put("type", "text");
+            textContent.put("text",
+                "Analyse ce document administratif (carte grise, assurance, permis de conduire, visite technique, etc.). " +
+                "Extrais toutes les informations disponibles et renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés : " +
+                "'typeDocument' (chaîne: INSURANCE, TECHNICAL_CONTROL, REGISTRATION, PERMIT, CONTRACT, PAYSLIP, ou OTHER selon ce qui est détecté), " +
+                "'referenceNumber' (chaîne, ex: numéro de permis, numéro de série, numéro de police d'assurance), " +
+                "'issueDate' (chaîne au format YYYY-MM-DD, date de délivrance ou d'émission), " +
+                "'expiryDate' (chaîne au format YYYY-MM-DD, date de fin de validité ou d'expiration), " +
+                "'issuer' (chaîne, organisme émetteur, ex: Préfecture, nom de l'assurance), " +
+                "'amount' (nombre décimal avec point comme séparateur, ex: coût de la carte grise ou de l'assurance, ou null si non applicable), " +
+                "'notes' (chaîne, toutes autres informations pertinentes, null si rien)."
+            );
+
+            Map<String, Object> message = new HashMap<>();
+            message.put("role", "user");
+            message.put("content", List.of(fileContent, textContent));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-api-key", anthropicApiKey);
+            headers.set("anthropic-version", "2023-06-01");
+            // PDF support requires this beta header
+            if (isPdf) {
+                headers.set("anthropic-beta", "pdfs-2024-09-25");
+            }
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("model", anthropicModel);
+            body.put("max_tokens", 1024);
+            body.put("messages", List.of(message));
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    "https://api.anthropic.com/v1/messages",
+                    requestEntity,
+                    String.class
+            );
+
+            log.info("Anthropic HTTP status (Document Flotte): {}", response.getStatusCode());
+            log.info("Anthropic raw body (Document Flotte): {}", response.getBody());
+
+            JsonNode rootNode = objectMapper.readTree(response.getBody());
+
+            // Vérifier si la réponse contient une erreur Anthropic
+            if (rootNode.has("error")) {
+                String errMsg = rootNode.path("error").path("message").asText("Erreur inconnue de l'API");
+                log.error("Anthropic API error: {}", errMsg);
+                throw new InvalidOperationException("Erreur API IA : " + errMsg);
+            }
+
+            JsonNode contentNode = rootNode.path("content");
+            if (contentNode.isMissingNode() || contentNode.isEmpty()) {
+                log.error("Anthropic response has no content: {}", response.getBody());
+                throw new InvalidOperationException("Réponse vide de l'IA.");
+            }
+
+            String assistantReply = contentNode.get(0).path("text").asText();
+
+            assistantReply = assistantReply.replaceAll("(?s)^```json\\s*", "");
+            assistantReply = assistantReply.replaceAll("(?s)\\s*```$", "");
+            assistantReply = assistantReply.trim();
+
+            log.info("Anthropic parsed reply (Document Flotte): {}", assistantReply);
+
+            return objectMapper.readValue(assistantReply, com.transport.tms.dto.fleet.response.OcrDocumentResult.class);
+
+        } catch (InvalidOperationException e) {
+            throw e;
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("Anthropic HTTP error {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new InvalidOperationException("Erreur API IA (" + e.getStatusCode() + "): " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("Erreur inattendue lors de l'extraction du document: {}", e.getMessage(), e);
+            throw new InvalidOperationException("Erreur de traitement : " + e.getMessage());
+        }
+    }
 }

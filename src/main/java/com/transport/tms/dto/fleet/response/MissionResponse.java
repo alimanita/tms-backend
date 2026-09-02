@@ -14,8 +14,7 @@ public record MissionResponse(
     Long vehiculeId,
     String vehiculeRef,
     String vehiculeImmatriculation,
-    java.util.List<Long> chauffeurIds,
-    String chauffeursNoms,
+    java.util.List<ChauffeurSlotResponse> chauffeurs,
     
     String modeExecution,
     Long partenaireId,
