@@ -29,32 +29,74 @@ public class VehiculeServiceImpl implements VehiculeService {
     private final VehiculeRepository vehiculeRepository;
     private final VehiculeMapper vehiculeMapper;
 
+    private static final int MAX_TENTATIVES_REFERENCE = 5;
+
     @Override
     public VehiculeResponse create(VehiculeRequest request) {
-        // Générer référence automatiquement si absente
-        String reference = (request.reference() != null && !request.reference().isBlank())
-                ? request.reference()
-                : genererReference();
-
-        if (vehiculeRepository.existsByReference(reference)) {
-            reference = genererReference(); // retry
+        // Générer référence automatiquement si absente, sinon vérifier l'unicité de celle fournie
+        String reference;
+        if (request.reference() != null && !request.reference().isBlank()) {
+            reference = request.reference();
+            if (vehiculeRepository.existsByReference(reference)) {
+                throw new InvalidOperationException(
+                        "La référence '" + reference + "' existe déjà. Merci d'en choisir une autre.");
+            }
+        } else {
+            reference = genererReferenceUnique();
         }
+
         if (vehiculeRepository.existsByImmatriculation(request.immatriculation())) {
             throw new InvalidOperationException(
                     "Un véhicule avec l'immatriculation '" + request.immatriculation() + "' existe déjà");
         }
 
         Vehicule vehicule = vehiculeMapper.toEntity(request);
-        vehicule.setReference(reference);  // ← forcer la référence générée
+        vehicule.setReference(reference); // forcer la référence générée/validée
 
         return vehiculeMapper.toResponse(vehiculeRepository.save(vehicule));
     }
 
+    /**
+     * Génère une référence unique du type VH-{annee}-{numero}, en se basant sur
+     * la dernière référence réellement enregistrée pour l'année en cours
+     * (et non sur un simple count() qui peut créer des doublons si des
+     * véhicules ont été supprimés ou en cas d'accès concurrent).
+     * Une boucle de vérification/retry protège contre les collisions résiduelles.
+     */
+    private String genererReferenceUnique() {
+        String reference;
+        int tentative = 0;
+        do {
+            reference = genererReference();
+            tentative++;
+            if (tentative > MAX_TENTATIVES_REFERENCE) {
+                throw new IllegalStateException(
+                        "Impossible de générer une référence véhicule unique après "
+                                + MAX_TENTATIVES_REFERENCE + " tentatives");
+            }
+        } while (vehiculeRepository.existsByReference(reference));
+        return reference;
+    }
+
     private String genererReference() {
         int annee = LocalDate.now().getYear();
-        long count = vehiculeRepository.count() + 1;
-        return String.format("VH-%d-%03d", annee, count);  // VH-2026-001
+        int prochainNumero = vehiculeRepository.findLastReferenceForYear(annee)
+                .map(this::extraireNumeroSuivant)
+                .orElse(1);
+        return String.format("VH-%d-%03d", annee, prochainNumero);
     }
+
+    private int extraireNumeroSuivant(String derniereReference) {
+        try {
+            String[] parts = derniereReference.split("-");
+            int dernierNumero = Integer.parseInt(parts[parts.length - 1]);
+            return dernierNumero + 1;
+        } catch (Exception e) {
+            log.warn("Impossible de parser la référence '{}', fallback sur count()", derniereReference);
+            return (int) vehiculeRepository.count() + 1;
+        }
+    }
+
     @Override
     public VehiculeResponse update(Long id, VehiculeRequest request) {
         Vehicule vehicule = findEntityById(id);
@@ -75,7 +117,7 @@ public class VehiculeServiceImpl implements VehiculeService {
     // We'll inject ChauffeurRepository and UtilisateurRepository using field injection to avoid messing with constructor
     @org.springframework.beans.factory.annotation.Autowired
     private com.transport.tms.repository.fleet.ChauffeurRepository chauffeurRepository;
-    
+
     @org.springframework.beans.factory.annotation.Autowired
     private com.transport.tms.repository.UtilisateurRepository utilisateurRepository;
 

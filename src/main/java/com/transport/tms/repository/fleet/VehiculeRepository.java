@@ -34,7 +34,8 @@ public interface VehiculeRepository extends JpaRepository<Vehicule, Long> {
     long countByChauffeurAffecteId(Long chauffeurId);
 
     long countByChauffeurAffecteIdAndStatut(Long chauffeurId, StatutVehicule statut);
-
+    @Query("SELECT v.reference FROM Vehicule v WHERE v.reference LIKE CONCAT('VH-', :annee, '-%') ORDER BY v.reference DESC LIMIT 1")
+    Optional<String> findLastReferenceForYear(@Param("annee") int annee);
     @Query("SELECT v.id FROM Vehicule v WHERE v.chauffeurAffecte.id = :chauffeurId")
     List<Long> findIdsByChauffeurAffecteId(@Param("chauffeurId") Long chauffeurId);
 }
