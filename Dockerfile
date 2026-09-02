@@ -10,11 +10,18 @@ RUN mvn dependency:go-offline
 COPY . .
 RUN mvn clean package -DskipTests
 
-FROM eclipse-temurin:21-jre-alpine
+# --- Runtime : glibc obligatoire pour OpenCV (opencv-platform) ---
+FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
-RUN addgroup -S spring && adduser -S spring -G spring \
+# Libs nécessaires pour OpenCV/JavaCV en runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r spring && useradd -r -g spring spring \
     && mkdir -p /app/uploads/fuel-proofs \
     && chown -R spring:spring /app
 
