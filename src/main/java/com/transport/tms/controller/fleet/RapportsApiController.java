@@ -434,6 +434,12 @@ public class RapportsApiController {
         List<com.transport.tms.domain.entity.fleet.Mission> filtered = missionRepository.findForBilanExploitation(
                 debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
 
+        // Charger les dépenses standalone en amont (carburant + péage indépendants des missions)
+        List<com.transport.tms.domain.entity.fleet.PleinCarburant> allStandaloneFuels = pleinCarburantRepository.findStandaloneForBilanExploitation(
+                debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
+        List<com.transport.tms.domain.entity.fleet.Peage> allStandaloneTolls = peageRepository.findStandaloneForBilanExploitation(
+                debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
+
         java.math.BigDecimal totalRevenu = java.math.BigDecimal.ZERO;
         java.math.BigDecimal totalCarburant = java.math.BigDecimal.ZERO;
         java.math.BigDecimal totalPeage = java.math.BigDecimal.ZERO;
@@ -468,13 +474,21 @@ public class RapportsApiController {
             ligne.setRevenu(rev);
             totalRevenu = totalRevenu.add(rev);
 
-            // Carburant : somme réelle des pleins liés à cette mission
+            // Carburant : pleins liés à cette mission, sinon coût carburant de la mission
             java.math.BigDecimal carburant = pleinCarburantRepository.sumCarburantByMissionId(m.getId());
             if (carburant == null) carburant = java.math.BigDecimal.ZERO;
+            if (carburant.compareTo(java.math.BigDecimal.ZERO) == 0 && m.getFuelCost() != null
+                    && m.getFuelCost().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                carburant = m.getFuelCost();
+            }
 
-            // Péage : somme réelle des péages liés à cette mission
+            // Péage : péages liés à cette mission, sinon coût péage de la mission
             java.math.BigDecimal peage = peageRepository.sumPeageByMissionId(m.getId());
             if (peage == null) peage = java.math.BigDecimal.ZERO;
+            if (peage.compareTo(java.math.BigDecimal.ZERO) == 0 && m.getTollCost() != null
+                    && m.getTollCost().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                peage = m.getTollCost();
+            }
 
             // Autres dépenses : champ direct sur la mission (dépenses diverses saisies)
             java.math.BigDecimal autres = m.getOtherExpenses() != null ? m.getOtherExpenses() : java.math.BigDecimal.ZERO;
@@ -491,11 +505,8 @@ public class RapportsApiController {
             dto.getMissions().add(ligne);
         }
 
-        // 2. Pleins carburant hors mission filtrés par SQL
-        List<com.transport.tms.domain.entity.fleet.PleinCarburant> fuels = pleinCarburantRepository.findStandaloneForBilanExploitation(
-                debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
-        
-        for (var fuel : fuels) {
+        // 2. Pleins carburant hors mission (déjà chargés)
+        for (var fuel : allStandaloneFuels) {
             java.math.BigDecimal montant = java.math.BigDecimal.ZERO;
             if (fuel.getQuantityLiters() != null && fuel.getPricePerLiter() != null) {
                 montant = fuel.getQuantityLiters().multiply(fuel.getPricePerLiter());
@@ -514,11 +525,8 @@ public class RapportsApiController {
             dto.getDepensesLibres().add(ligne);
         }
 
-        // 3. Péages hors mission filtrés par SQL
-        List<com.transport.tms.domain.entity.fleet.Peage> tolls = peageRepository.findStandaloneForBilanExploitation(
-                debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
-        
-        for (var toll : tolls) {
+        // 3. Péages hors mission (déjà chargés)
+        for (var toll : allStandaloneTolls) {
             java.math.BigDecimal montant = toll.getAmountTTC() != null ? toll.getAmountTTC() : java.math.BigDecimal.ZERO;
 
             BilanExploitationDto.LigneDepenseLibre ligne = new BilanExploitationDto.LigneDepenseLibre();
