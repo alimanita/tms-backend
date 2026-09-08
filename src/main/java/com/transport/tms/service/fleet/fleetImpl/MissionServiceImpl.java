@@ -60,6 +60,7 @@ public class MissionServiceImpl implements MissionService {
     private final FileStorageService fileStorageService;
     private final MissionMapper mapper;
 
+    private static final int MAX_TENTATIVES_REFERENCE = 5;
 
     private static final Set<String> ROLES_GESTION = Set.of(
             "ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_VENDEUR"
@@ -85,7 +86,7 @@ public class MissionServiceImpl implements MissionService {
         }
 
         Mission mission = mapper.toEntity(request);
-        mission.setReference(generateReference());
+        mission.setReference(genererReferenceUnique());
         mission.setStatut(Mission.StatutMission.PLANNED);
 
         applyExecutionModeRules(mission, request);
@@ -107,12 +108,12 @@ public class MissionServiceImpl implements MissionService {
         if (missionRepository.existsByTitleAndIdNot(request.title(), id)) {
             throw new InvalidOperationException("Une mission avec ce titre existe déjà");
         }
-        
+
         mapper.updateEntity(mission, request);
-        
+
         // Retain reference and status
         mission.setReference(mission.getReference());
-        // mission.setStatut(Mission.StatutMission.PLANNED); 
+        // mission.setStatut(Mission.StatutMission.PLANNED);
 
         applyExecutionModeRules(mission, request);
 
@@ -147,7 +148,7 @@ public class MissionServiceImpl implements MissionService {
             if (mission.getChauffeurSlots() != null) {
                 mission.getChauffeurSlots().clear();
             }
-            
+
             if (request.partenaireId() == null) {
                 throw new InvalidOperationException("Un partenaire est requis pour une mission sous-traitée");
             }
@@ -156,7 +157,7 @@ public class MissionServiceImpl implements MissionService {
             mission.setPartenaire(partenaire);
             mission.setExterneCamion(request.externeCamion());
             mission.setExterneChauffeur(request.externeChauffeur());
-            
+
             if (mission.getStatutSousTraitance() == null) {
                 mission.setStatutSousTraitance(com.transport.tms.domain.enums.StatutSousTraitance.PROPOSED);
             }
@@ -168,7 +169,7 @@ public class MissionServiceImpl implements MissionService {
             // Taux par défaut 10% si non renseigné
             if (taux == null) taux = new java.math.BigDecimal("10");
             mission.setTauxCommission(taux);
-            
+
             if (mission.getRevenue() != null) {
                 // SUBCONTRACTED : votre bénéfice = revenue × taux%
                 java.math.BigDecimal montantComm = mission.getRevenue().multiply(taux).divide(new java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
@@ -250,12 +251,12 @@ public class MissionServiceImpl implements MissionService {
                 log.warn("Planification avec véhicule non disponible ({}): statut={}", vehicule.getReference(), vehicule.getStatut());
             }
             mission.setVehicule(vehicule);
-            
+
             if (mission.getChauffeurSlots() == null) {
                 mission.setChauffeurSlots(new ArrayList<>());
             }
             mission.getChauffeurSlots().clear();
-            
+
             if (request.chauffeurs() != null) {
                 for (com.transport.tms.dto.fleet.request.ChauffeurSlotRequest slotReq : request.chauffeurs()) {
                     Chauffeur c = findChauffeurById(slotReq.chauffeurId());
@@ -454,7 +455,7 @@ public class MissionServiceImpl implements MissionService {
             plein.setChauffeur(mission.getChauffeurSlots().isEmpty() ? null : mission.getChauffeurSlots().get(0).getChauffeur());
             plein.setMission(mission);
             plein.setFillingDate(depense.getExpenseDate());
-            plein.setFuelType(mission.getVehicule().getTypeCarburant() != null ? mission.getVehicule().getTypeCarburant().name() : "DIESEL"); 
+            plein.setFuelType(mission.getVehicule().getTypeCarburant() != null ? mission.getVehicule().getTypeCarburant().name() : "DIESEL");
             plein.setQuantityLiters(request.quantityLiters() != null ? request.quantityLiters() : java.math.BigDecimal.ONE);
             plein.setPricePerLiter(request.pricePerLiter() != null ? request.pricePerLiter() : depense.getMontant());
             plein.setMileageBefore(request.mileageBefore());
@@ -466,7 +467,7 @@ public class MissionServiceImpl implements MissionService {
 
             plein.calculerConsommation();
             pleinCarburantRepository.save(plein);
-            
+
             if (request.mileageAfter() != null) {
                 Vehicule vehicule = mission.getVehicule();
                 vehicule.setKilometrageActuel(request.mileageAfter());
@@ -587,15 +588,52 @@ public class MissionServiceImpl implements MissionService {
                         "Chauffeur introuvable avec l'ID = " + id));
     }
 
-    private String generateReference() {
-        long count = missionRepository.count() + 1;
-        return String.format("MSN-%d-%04d", LocalDate.now().getYear(), count);
+    /**
+     * Génère une référence unique du type MSN-{annee}-{numero}, en se basant sur
+     * la dernière référence réellement enregistrée pour l'année en cours
+     * (et non sur un simple count() qui peut créer des doublons si des
+     * missions ont été supprimées ou en cas d'accès concurrent).
+     * Une boucle de vérification/retry protège contre les collisions résiduelles.
+     */
+    private String genererReferenceUnique() {
+        String reference;
+        int tentative = 0;
+        do {
+            reference = generateReference();
+            tentative++;
+            if (tentative > MAX_TENTATIVES_REFERENCE) {
+                throw new IllegalStateException(
+                        "Impossible de générer une référence mission unique après "
+                                + MAX_TENTATIVES_REFERENCE + " tentatives");
+            }
+        } while (missionRepository.existsByReference(reference));
+        return reference;
     }
+
+    private String generateReference() {
+        int annee = LocalDate.now().getYear();
+        int prochainNumero = missionRepository.findLastReferenceForYear(annee)
+                .map(this::extraireNumeroSuivant)
+                .orElse(1);
+        return String.format("MSN-%d-%04d", annee, prochainNumero);
+    }
+
+    private int extraireNumeroSuivant(String derniereReference) {
+        try {
+            String[] parts = derniereReference.split("-");
+            int dernierNumero = Integer.parseInt(parts[parts.length - 1]);
+            return dernierNumero + 1;
+        } catch (Exception e) {
+            log.warn("Impossible de parser la référence '{}', fallback sur count()", derniereReference);
+            return (int) missionRepository.count() + 1;
+        }
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<MissionResponse> findMesMissions() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        log.info("findMesMissions - User: {}, Authorities: {}", 
+        log.info("findMesMissions - User: {}, Authorities: {}",
                 auth != null ? auth.getName() : "null",
                 auth != null ? auth.getAuthorities() : "null");
 

@@ -20,6 +20,10 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
     Optional<Mission> findByReference(String reference);
 
     boolean existsByReference(String reference);
+
+
+    @Query("SELECT m.reference FROM Mission m WHERE m.reference LIKE CONCAT('MSN-', :annee, '-%') ORDER BY m.reference DESC LIMIT 1")
+    Optional<String> findLastReferenceForYear(@Param("annee") int annee);
     boolean existsByTitle(String title);
     boolean existsByTitleAndIdNot(String title, Long id);
 
