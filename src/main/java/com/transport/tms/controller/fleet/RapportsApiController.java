@@ -468,14 +468,25 @@ public class RapportsApiController {
             ligne.setRevenu(rev);
             totalRevenu = totalRevenu.add(rev);
 
-            ligne.setCarburant(m.getFuelCost() != null ? m.getFuelCost() : java.math.BigDecimal.ZERO);
-            ligne.setPeage(m.getTollCost() != null ? m.getTollCost() : java.math.BigDecimal.ZERO);
-            ligne.setAutres(m.getOtherExpenses() != null ? m.getOtherExpenses() : java.math.BigDecimal.ZERO);
-            ligne.setTotalCout(ligne.getCarburant().add(ligne.getPeage()).add(ligne.getAutres()));
+            // Carburant : somme réelle des pleins liés à cette mission
+            java.math.BigDecimal carburant = pleinCarburantRepository.sumCarburantByMissionId(m.getId());
+            if (carburant == null) carburant = java.math.BigDecimal.ZERO;
 
-            totalCarburant = totalCarburant.add(ligne.getCarburant());
-            totalPeage = totalPeage.add(ligne.getPeage());
-            totalAutres = totalAutres.add(ligne.getAutres());
+            // Péage : somme réelle des péages liés à cette mission
+            java.math.BigDecimal peage = peageRepository.sumPeageByMissionId(m.getId());
+            if (peage == null) peage = java.math.BigDecimal.ZERO;
+
+            // Autres dépenses : champ direct sur la mission (dépenses diverses saisies)
+            java.math.BigDecimal autres = m.getOtherExpenses() != null ? m.getOtherExpenses() : java.math.BigDecimal.ZERO;
+
+            ligne.setCarburant(carburant);
+            ligne.setPeage(peage);
+            ligne.setAutres(autres);
+            ligne.setTotalCout(carburant.add(peage).add(autres));
+
+            totalCarburant = totalCarburant.add(carburant);
+            totalPeage = totalPeage.add(peage);
+            totalAutres = totalAutres.add(autres);
 
             dto.getMissions().add(ligne);
         }

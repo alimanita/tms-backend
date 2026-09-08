@@ -50,4 +50,11 @@ public interface PeageRepository extends JpaRepository<Peage, Long> {
         ORDER BY EXTRACT(YEAR FROM p.datePassage), EXTRACT(MONTH FROM p.datePassage)
         """)
     List<Object[]> sumCostByYearMonth(@org.springframework.data.repository.query.Param("fromDate") java.time.LocalDateTime fromDate);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COALESCE(SUM(p.amountTTC), 0)
+        FROM Peage p
+        WHERE p.mission.id = :missionId
+    """)
+    java.math.BigDecimal sumPeageByMissionId(@org.springframework.data.repository.query.Param("missionId") Long missionId);
 }

@@ -155,4 +155,11 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
     List<PleinCarburant> findByMissionIdOrderByFillingDateDesc(Long missionId);
 
     Page<PleinCarburant> findByMissionId(Long missionId, Pageable pageable);
+
+    @Query("""
+        SELECT COALESCE(SUM(p.quantityLiters * p.pricePerLiter), 0)
+        FROM PleinCarburant p
+        WHERE p.mission.id = :missionId
+    """)
+    java.math.BigDecimal sumCarburantByMissionId(@Param("missionId") Long missionId);
 }
