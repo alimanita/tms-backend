@@ -80,6 +80,11 @@ public class PeageServiceImpl implements PeageService {
     @Override
     @Transactional
     public PeageResponse create(PeageRequest request, MultipartFile proof) {
+        if (request.receiptNumber() != null && !request.receiptNumber().isBlank() &&
+            peageRepository.existsByReceiptNumber(request.receiptNumber())) {
+            throw new com.transport.tms.exception.InvalidOperationException("Un péage avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+        }
+
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
                 .orElseThrow(() -> new EntityNotFoundException("Véhicule non trouvé"));
 

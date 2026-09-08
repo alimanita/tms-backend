@@ -21,6 +21,26 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
 
     boolean existsByReference(String reference);
 
+    boolean existsByReceiptNumber(String receiptNumber);
+    boolean existsByReceiptNumberAndIdNot(String receiptNumber, Long id);
+
+    @Query("""
+        SELECT DISTINCT p FROM PleinCarburant p
+        LEFT JOIN FETCH p.vehicule v
+        LEFT JOIN FETCH p.chauffeur c
+        WHERE p.mission IS NULL
+        AND p.fillingDate BETWEEN :debut AND :fin
+        AND (:filterVehicule = false OR v.id IN :vehiculeIds)
+        AND (:filterChauffeur = false OR c.id IN :chauffeurIds)
+    """)
+    List<PleinCarburant> findStandaloneForBilanExploitation(
+            @Param("debut") java.time.LocalDateTime debut,
+            @Param("fin") java.time.LocalDateTime fin,
+            @Param("vehiculeIds") List<Long> vehiculeIds,
+            @Param("filterVehicule") boolean filterVehicule,
+            @Param("chauffeurIds") List<Long> chauffeurIds,
+            @Param("filterChauffeur") boolean filterChauffeur);
+
     @Query("SELECT MAX(CAST(SUBSTRING(p.reference, 11) AS int)) FROM PleinCarburant p WHERE p.reference LIKE CONCAT(:prefix, '%')")
     Long findMaxSequenceForYear(@Param("prefix") String prefix);
 
@@ -131,4 +151,8 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
         ORDER BY EXTRACT(YEAR FROM p.fillingDate), EXTRACT(MONTH FROM p.fillingDate)
         """)
     List<Object[]> sumCostByYearMonth(@Param("fromDate") LocalDateTime fromDate);
+
+    List<PleinCarburant> findByMissionIdOrderByFillingDateDesc(Long missionId);
+
+    Page<PleinCarburant> findByMissionId(Long missionId, Pageable pageable);
 }

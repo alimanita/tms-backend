@@ -41,6 +41,7 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
     private final PleinCarburantRepository pleinRepository;
     private final VehiculeRepository vehiculeRepository;
     private final ChauffeurRepository chauffeurRepository;
+    private final com.transport.tms.repository.fleet.MissionRepository missionRepository;
     private final PleinCarburantMapper mapper;
     private final FileStorageService fileStorageService;
     private final UtilisateurRepository utilisateurRepository;
@@ -49,6 +50,11 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
 
     @Override
     public PleinCarburantResponse create(PleinCarburantRequest request, MultipartFile proof) {
+        if (request.receiptNumber() != null && !request.receiptNumber().isBlank() &&
+            pleinRepository.existsByReceiptNumber(request.receiptNumber())) {
+            throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+        }
+
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Véhicule introuvable avec l'ID = " + request.vehiculeId()));
@@ -59,9 +65,8 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
             BigDecimal dernierKm = vehicule.getKilometrageActuel();
             if (request.mileageAfter().compareTo(dernierKm) < 0) {
                 throw new InvalidOperationException(
-                        "Le kilométrage du plein (" + request.mileageAfter()
-                                + ") ne peut pas être inférieur au kilométrage actuel ("
-                                + dernierKm + ")");
+                        "Le kilométrage saisi (" + request.mileageAfter() + 
+                        ") est inférieur au kilométrage actuel du véhicule (" + dernierKm + ")");
             }
         }
 
@@ -82,8 +87,15 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
         }
         plein.setChauffeur(chauffeur);
 
+        if (request.missionId() != null) {
+            com.transport.tms.domain.entity.fleet.Mission mission = missionRepository.findById(request.missionId())
+                    .orElseThrow(() -> new EntityNotFoundException("Mission introuvable"));
+            plein.setMission(mission);
+        }
+
         if (proof != null && !proof.isEmpty()) {
-            plein.setProofFilePath(fileStorageService.store(proof));
+            String filePath = fileStorageService.store(proof);
+            plein.setProofFilePath(filePath);
         }
 
         if (request.mileageAfter() != null) {
@@ -96,6 +108,11 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
 
     @Override
     public PleinCarburantResponse update(Long id, PleinCarburantRequest request, MultipartFile proof) {
+        if (request.receiptNumber() != null && !request.receiptNumber().isBlank() &&
+            pleinRepository.existsByReceiptNumberAndIdNot(request.receiptNumber(), id)) {
+            throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+        }
+
         PleinCarburant plein = findEntityById(id);
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
@@ -128,6 +145,15 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
                     .orElseThrow(() -> new EntityNotFoundException(
                             "Chauffeur introuvable avec l'ID = " + request.chauffeurId()));
             plein.setChauffeur(chauffeur);
+        }
+
+        // Mission
+        if (request.missionId() != null) {
+            com.transport.tms.domain.entity.fleet.Mission mission = missionRepository.findById(request.missionId())
+                    .orElseThrow(() -> new EntityNotFoundException("Mission introuvable"));
+            plein.setMission(mission);
+        } else {
+            plein.setMission(null);
         }
 
         // Nouveau fichier justificatif fourni → on remplace

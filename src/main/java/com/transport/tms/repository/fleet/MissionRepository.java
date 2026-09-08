@@ -20,6 +20,25 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
     Optional<Mission> findByReference(String reference);
 
     boolean existsByReference(String reference);
+    boolean existsByTitle(String title);
+    boolean existsByTitleAndIdNot(String title, Long id);
+
+    @Query("""
+        SELECT DISTINCT m FROM Mission m
+        LEFT JOIN FETCH m.vehicule v
+        LEFT JOIN FETCH m.chauffeurSlots cs
+        LEFT JOIN FETCH cs.chauffeur c
+        WHERE (COALESCE(m.actualReturn, m.plannedDeparture) BETWEEN :debut AND :fin)
+        AND (:filterVehicule = false OR v.id IN :vehiculeIds)
+        AND (:filterChauffeur = false OR c.id IN :chauffeurIds)
+    """)
+    List<Mission> findForBilanExploitation(
+            @org.springframework.data.repository.query.Param("debut") java.time.LocalDateTime debut,
+            @org.springframework.data.repository.query.Param("fin") java.time.LocalDateTime fin,
+            @org.springframework.data.repository.query.Param("vehiculeIds") List<Long> vehiculeIds,
+            @org.springframework.data.repository.query.Param("filterVehicule") boolean filterVehicule,
+            @org.springframework.data.repository.query.Param("chauffeurIds") List<Long> chauffeurIds,
+            @org.springframework.data.repository.query.Param("filterChauffeur") boolean filterChauffeur);
 
     // Par statut
     Page<Mission> findByStatut(Mission.StatutMission statut, Pageable pageable);

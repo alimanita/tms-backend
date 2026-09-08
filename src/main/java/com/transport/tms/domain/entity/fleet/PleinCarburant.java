@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import com.transport.tms.domain.entity.fleet.Mission;
 
 
 @Entity
@@ -33,6 +34,10 @@ public class PleinCarburant {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "driver_id")
     private Chauffeur chauffeur;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "mission_id")
+    private Mission mission;
 
     @Column(name = "filling_date", nullable = false)
     private LocalDateTime fillingDate = LocalDateTime.now();
@@ -61,7 +66,7 @@ public class PleinCarburant {
     @Column(name = "is_full_tank")
     private Boolean isFullTank = true;
 
-    @Column(name = "receipt_number", length = 100)
+    @Column(name = "receipt_number", unique = true, length = 100)
     private String receiptNumber;
 
     @Column(name = "amount_ht", precision = 12, scale = 3)

@@ -30,6 +30,7 @@ public class RapportsApiController {
     private final com.transport.tms.repository.fleet.PleinCarburantRepository pleinCarburantRepository;
     private final com.transport.tms.repository.fleet.OrdreTravailRepository ordreTravailRepository;
     private final com.transport.tms.repository.fleet.ChauffeurRepository chauffeurRepository;
+    private final com.transport.tms.repository.fleet.PeageRepository peageRepository;
 
     // ── Entretiens / Maintenance ──────────────────────────────────────────────
 
@@ -405,5 +406,131 @@ public class RapportsApiController {
             }
         }
         return map;
+    }
+
+    // ── Bilan Exploitation ──────────────────────────────────────────────────
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @GetMapping("/bilan-exploitation")
+    public ResponseEntity<BilanExploitationDto> getBilanExploitation(
+            @RequestParam(required = false) List<Long> chauffeurIds,
+            @RequestParam(required = false) List<Long> vehiculeIds,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDebut,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFin) {
+
+        BilanExploitationDto dto = new BilanExploitationDto();
+
+        java.time.LocalDateTime debut = (dateDebut != null ? dateDebut : LocalDate.of(2000, 1, 1)).atStartOfDay();
+        java.time.LocalDateTime fin = (dateFin != null ? dateFin : LocalDate.now().plusDays(1)).atTime(23, 59, 59);
+
+        boolean filterChauffeur = chauffeurIds != null && !chauffeurIds.isEmpty();
+        boolean filterVehicule = vehiculeIds != null && !vehiculeIds.isEmpty();
+
+        // Safe empty lists for queries when not filtering
+        List<Long> safeChauffeurIds = filterChauffeur ? chauffeurIds : List.of(-1L);
+        List<Long> safeVehiculeIds = filterVehicule ? vehiculeIds : List.of(-1L);
+
+        // 1. Missions filtrées directement par SQL/HQL
+        List<com.transport.tms.domain.entity.fleet.Mission> filtered = missionRepository.findForBilanExploitation(
+                debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
+
+        java.math.BigDecimal totalRevenu = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal totalCarburant = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal totalPeage = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal totalAutres = java.math.BigDecimal.ZERO;
+
+        for (var m : filtered) {
+            BilanExploitationDto.LigneMission ligne = new BilanExploitationDto.LigneMission();
+            ligne.setMissionId(m.getId());
+            ligne.setReference(m.getReference());
+            ligne.setTitle(m.getTitle());
+            ligne.setModeExecution(m.getModeExecution() != null ? m.getModeExecution().name() : "INTERNAL");
+
+            java.time.LocalDateTime mDate = m.getActualReturn() != null ? m.getActualReturn() : m.getPlannedDeparture();
+            ligne.setDate(mDate != null ? mDate.toLocalDate().toString() : "");
+
+            if (m.getChauffeurSlots() != null && !m.getChauffeurSlots().isEmpty()) {
+                ligne.setChauffeurNom(m.getChauffeurSlots().stream()
+                    .map(cs -> cs.getChauffeur().getPrenom() + " " + cs.getChauffeur().getNom())
+                    .collect(java.util.stream.Collectors.joining(", ")));
+            }
+            if (m.getVehicule() != null) {
+                ligne.setVehiculeRef(m.getVehicule().getImmatriculation());
+            }
+
+            // Revenue : pour ST/Partenaire, utiliser le bénéfice (montantCommission)
+            java.math.BigDecimal rev = m.getRevenue() != null ? m.getRevenue() : java.math.BigDecimal.ZERO;
+            if ((m.getModeExecution() == com.transport.tms.domain.enums.ModeExecution.SUBCONTRACTED ||
+                 m.getModeExecution() == com.transport.tms.domain.enums.ModeExecution.PARTNER_MISSION) &&
+                m.getMontantCommission() != null) {
+                rev = m.getMontantCommission();
+            }
+            ligne.setRevenu(rev);
+            totalRevenu = totalRevenu.add(rev);
+
+            ligne.setCarburant(m.getFuelCost() != null ? m.getFuelCost() : java.math.BigDecimal.ZERO);
+            ligne.setPeage(m.getTollCost() != null ? m.getTollCost() : java.math.BigDecimal.ZERO);
+            ligne.setAutres(m.getOtherExpenses() != null ? m.getOtherExpenses() : java.math.BigDecimal.ZERO);
+            ligne.setTotalCout(ligne.getCarburant().add(ligne.getPeage()).add(ligne.getAutres()));
+
+            totalCarburant = totalCarburant.add(ligne.getCarburant());
+            totalPeage = totalPeage.add(ligne.getPeage());
+            totalAutres = totalAutres.add(ligne.getAutres());
+
+            dto.getMissions().add(ligne);
+        }
+
+        // 2. Pleins carburant hors mission filtrés par SQL
+        List<com.transport.tms.domain.entity.fleet.PleinCarburant> fuels = pleinCarburantRepository.findStandaloneForBilanExploitation(
+                debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
+        
+        for (var fuel : fuels) {
+            java.math.BigDecimal montant = java.math.BigDecimal.ZERO;
+            if (fuel.getQuantityLiters() != null && fuel.getPricePerLiter() != null) {
+                montant = fuel.getQuantityLiters().multiply(fuel.getPricePerLiter());
+            }
+
+            BilanExploitationDto.LigneDepenseLibre ligne = new BilanExploitationDto.LigneDepenseLibre();
+            ligne.setId(fuel.getId());
+            ligne.setType("CARBURANT");
+            ligne.setReference(fuel.getReference());
+            ligne.setDate(fuel.getFillingDate().toLocalDate().toString());
+            if (fuel.getChauffeur() != null) ligne.setChauffeurNom(fuel.getChauffeur().getPrenom() + " " + fuel.getChauffeur().getNom());
+            if (fuel.getVehicule() != null) ligne.setVehiculeRef(fuel.getVehicule().getImmatriculation());
+            ligne.setMontant(montant);
+
+            totalCarburant = totalCarburant.add(montant);
+            dto.getDepensesLibres().add(ligne);
+        }
+
+        // 3. Péages hors mission filtrés par SQL
+        List<com.transport.tms.domain.entity.fleet.Peage> tolls = peageRepository.findStandaloneForBilanExploitation(
+                debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
+        
+        for (var toll : tolls) {
+            java.math.BigDecimal montant = toll.getAmountTTC() != null ? toll.getAmountTTC() : java.math.BigDecimal.ZERO;
+
+            BilanExploitationDto.LigneDepenseLibre ligne = new BilanExploitationDto.LigneDepenseLibre();
+            ligne.setId(toll.getId());
+            ligne.setType("PEAGE");
+            ligne.setReference(toll.getReceiptNumber());
+            ligne.setDate(toll.getDatePassage().toLocalDate().toString());
+            if (toll.getChauffeur() != null) ligne.setChauffeurNom(toll.getChauffeur().getPrenom() + " " + toll.getChauffeur().getNom());
+            if (toll.getVehicule() != null) ligne.setVehiculeRef(toll.getVehicule().getImmatriculation());
+            ligne.setMontant(montant);
+
+            totalPeage = totalPeage.add(montant);
+            dto.getDepensesLibres().add(ligne);
+        }
+
+        dto.setTotalRevenu(totalRevenu);
+        dto.setTotalCarburant(totalCarburant);
+        dto.setTotalPeage(totalPeage);
+        dto.setTotalAutres(totalAutres);
+        dto.setTotalDepenses(totalCarburant.add(totalPeage).add(totalAutres));
+        dto.setBeneficeNet(totalRevenu.subtract(dto.getTotalDepenses()));
+        dto.setTotalMissions((long) filtered.size());
+
+        return ResponseEntity.ok(dto);
     }
 }

@@ -42,6 +42,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import com.transport.tms.repository.fleet.PeageRepository;
+
 @Service
 @Slf4j
 @Transactional
@@ -53,6 +55,7 @@ public class MissionServiceImpl implements MissionService {
     private final ChauffeurRepository chauffeurRepository;
     private final DepenseMissionRepository depenseMissionRepository;
     private final PleinCarburantRepository pleinCarburantRepository;
+    private final PeageRepository peageRepository;
     private final SocietePartenaireRepository partenaireRepository;
     private final FileStorageService fileStorageService;
     private final MissionMapper mapper;
@@ -77,6 +80,10 @@ public class MissionServiceImpl implements MissionService {
     }
     @Override
     public MissionResponse create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
+        if (missionRepository.existsByTitle(request.title())) {
+            throw new InvalidOperationException("Une mission avec ce titre existe déjà");
+        }
+
         Mission mission = mapper.toEntity(request);
         mission.setReference(generateReference());
         mission.setStatut(Mission.StatutMission.PLANNED);
@@ -96,6 +103,9 @@ public class MissionServiceImpl implements MissionService {
         Mission mission = findEntityById(id);
         if (mission.getStatut() != Mission.StatutMission.PLANNED) {
             throw new InvalidOperationException("Une mission ne peut être modifiée qu'en statut PLANNED");
+        }
+        if (missionRepository.existsByTitleAndIdNot(request.title(), id)) {
+            throw new InvalidOperationException("Une mission avec ce titre existe déjà");
         }
         
         mapper.updateEntity(mission, request);
@@ -155,15 +165,70 @@ public class MissionServiceImpl implements MissionService {
             if (taux == null && partenaire.getTauxCommissionDefaut() != null) {
                 taux = partenaire.getTauxCommissionDefaut();
             }
+            // Taux par défaut 10% si non renseigné
+            if (taux == null) taux = new java.math.BigDecimal("10");
             mission.setTauxCommission(taux);
             
-            if (mission.getRevenue() != null && taux != null) {
-                java.math.BigDecimal montantComm = mission.getRevenue().multiply(taux).divide(new java.math.BigDecimal("100"));
+            if (mission.getRevenue() != null) {
+                // SUBCONTRACTED : votre bénéfice = revenue × taux%
+                java.math.BigDecimal montantComm = mission.getRevenue().multiply(taux).divide(new java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
                 mission.setMontantCommission(montantComm);
                 mission.setMontantReversePartenaire(mission.getRevenue().subtract(montantComm));
             } else {
                 mission.setMontantCommission(null);
                 mission.setMontantReversePartenaire(null);
+            }
+
+        } else if (mode == com.transport.tms.domain.enums.ModeExecution.PARTNER_MISSION) {
+            // Le partenaire vous confie une mission, vous lui payez un %
+            if (request.partenaireId() == null) {
+                throw new InvalidOperationException("Un partenaire est requis pour ce type de mission");
+            }
+            SocietePartenaire partenaire = partenaireRepository.findById(request.partenaireId())
+                    .orElseThrow(() -> new EntityNotFoundException("Partenaire introuvable"));
+            mission.setPartenaire(partenaire);
+            mission.setExterneCamion(request.externeCamion());
+            mission.setExterneChauffeur(request.externeChauffeur());
+            if (mission.getStatutSousTraitance() == null) {
+                mission.setStatutSousTraitance(com.transport.tms.domain.enums.StatutSousTraitance.PROPOSED);
+            }
+
+            java.math.BigDecimal taux = request.tauxCommission();
+            if (taux == null && partenaire.getTauxCommissionDefaut() != null) {
+                taux = partenaire.getTauxCommissionDefaut();
+            }
+            if (taux == null) taux = new java.math.BigDecimal("10");
+            mission.setTauxCommission(taux);
+
+            if (mission.getRevenue() != null) {
+                // PARTNER_MISSION : vous payez au partenaire = revenue × taux%
+                // Votre bénéfice = revenue × (100% - taux%)
+                java.math.BigDecimal montantPartenaire = mission.getRevenue().multiply(taux).divide(new java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal votreBenefice = mission.getRevenue().subtract(montantPartenaire);
+                mission.setMontantReversePartenaire(montantPartenaire); // ce que vous payez au partenaire
+                mission.setMontantCommission(votreBenefice);            // votre bénéfice
+            } else {
+                mission.setMontantCommission(null);
+                mission.setMontantReversePartenaire(null);
+            }
+
+            // Véhicule et chauffeurs optionnels (mission confiée par le partenaire, vous gérez avec vos propres moyens)
+            if (request.vehiculeId() != null) {
+                Vehicule vehicule = findVehiculeById(request.vehiculeId());
+                mission.setVehicule(vehicule);
+            }
+            if (mission.getChauffeurSlots() == null) mission.setChauffeurSlots(new ArrayList<>());
+            mission.getChauffeurSlots().clear();
+            if (request.chauffeurs() != null) {
+                for (com.transport.tms.dto.fleet.request.ChauffeurSlotRequest slotReq : request.chauffeurs()) {
+                    Chauffeur c = findChauffeurById(slotReq.chauffeurId());
+                    com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot = new com.transport.tms.domain.entity.fleet.MissionChauffeurSlot();
+                    slot.setMission(mission);
+                    slot.setChauffeur(c);
+                    slot.setHeureDebut(parseSlotDateTime(slotReq.heureDebut()));
+                    slot.setHeureFin(parseSlotDateTime(slotReq.heureFin()));
+                    mission.getChauffeurSlots().add(slot);
+                }
             }
 
         } else {
@@ -180,9 +245,9 @@ public class MissionServiceImpl implements MissionService {
                 throw new InvalidOperationException("Un véhicule est requis pour une mission interne");
             }
             Vehicule vehicule = findVehiculeById(request.vehiculeId());
-            // Valider que si on change de vehicule ou nouvelle mission
-            if (mission.getVehicule() == null || !mission.getVehicule().getId().equals(vehicule.getId())) {
-                validerDisponibiliteVehicule(vehicule);
+            // La disponibilité n'est vérifiée qu'au démarrage, pas à la planification
+            if (vehicule.getStatut() != StatutVehicule.DISPONIBLE) {
+                log.warn("Planification avec véhicule non disponible ({}): statut={}", vehicule.getReference(), vehicule.getStatut());
             }
             mission.setVehicule(vehicule);
             
@@ -195,6 +260,10 @@ public class MissionServiceImpl implements MissionService {
                 for (com.transport.tms.dto.fleet.request.ChauffeurSlotRequest slotReq : request.chauffeurs()) {
                     Chauffeur c = findChauffeurById(slotReq.chauffeurId());
                     validerPermisVehicule(c);
+                    // Avertissement si chauffeur non disponible (ne bloque pas la planification)
+                    if (c.getStatut() != StatutChauffeur.DISPONIBLE) {
+                        log.warn("Planification avec chauffeur non disponible ({} {}): statut={}", c.getNom(), c.getPrenom(), c.getStatut());
+                    }
                     com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot = new com.transport.tms.domain.entity.fleet.MissionChauffeurSlot();
                     slot.setMission(mission);
                     slot.setChauffeur(c);
@@ -383,6 +452,7 @@ public class MissionServiceImpl implements MissionService {
             plein.setReference("FUEL-" + System.currentTimeMillis());
             plein.setVehicule(mission.getVehicule());
             plein.setChauffeur(mission.getChauffeurSlots().isEmpty() ? null : mission.getChauffeurSlots().get(0).getChauffeur());
+            plein.setMission(mission);
             plein.setFillingDate(depense.getExpenseDate());
             plein.setFuelType(mission.getVehicule().getTypeCarburant() != null ? mission.getVehicule().getTypeCarburant().name() : "DIESEL"); 
             plein.setQuantityLiters(request.quantityLiters() != null ? request.quantityLiters() : java.math.BigDecimal.ONE);
@@ -402,6 +472,20 @@ public class MissionServiceImpl implements MissionService {
                 vehicule.setKilometrageActuel(request.mileageAfter());
                 vehiculeRepository.save(vehicule);
             }
+        } else if (depense.getExpenseType() == DepenseMission.TypeDepense.TOLL) {
+            com.transport.tms.domain.entity.fleet.Peage peage = new com.transport.tms.domain.entity.fleet.Peage();
+            peage.setReference("PEAGE-" + System.currentTimeMillis());
+            peage.setVehicule(mission.getVehicule());
+            peage.setChauffeur(mission.getChauffeurSlots().isEmpty() ? null : mission.getChauffeurSlots().get(0).getChauffeur());
+            peage.setMission(mission);
+            peage.setDatePassage(depense.getExpenseDate());
+            peage.setAmountHT(request.amountHT() != null ? request.amountHT() : depense.getMontant());
+            peage.setAmountTTC(depense.getMontant());
+            peage.setTvaRate(request.tvaRate() != null ? request.tvaRate() : java.math.BigDecimal.valueOf(20));
+            peage.setTvaAmount(request.tvaAmount());
+            peage.setNotes("Péage lié à la mission " + mission.getReference() + (depense.getDescription() != null ? " - " + depense.getDescription() : ""));
+            peage.setProofFilePath(filePath);
+            peageRepository.save(peage);
         }
 
         mission.getDepenses().add(saved);

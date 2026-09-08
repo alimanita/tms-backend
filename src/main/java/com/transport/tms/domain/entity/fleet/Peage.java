@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.transport.tms.domain.entity.fleet.Mission;
 
 @Entity
 @Table(name = "peage")
@@ -57,7 +58,7 @@ public class Peage {
     @Column(name = "gare_sortie", length = 150)
     private String gareSortie;
 
-    @Column(name = "receipt_number", length = 100)
+    @Column(name = "receipt_number", unique = true, length = 100)
     private String receiptNumber;
 
     @Column(name = "societe_autoroute", length = 100)

@@ -14,6 +14,8 @@ public record PleinCarburantRequest(
 
     Long chauffeurId,
 
+    Long missionId,
+
     @NotNull(message = "La date du plein est obligatoire")
     LocalDateTime fillingDate,
 

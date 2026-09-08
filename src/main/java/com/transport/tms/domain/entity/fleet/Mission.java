@@ -29,7 +29,7 @@ public class Mission {
     @Column(unique = true, nullable = false, length = 50)
     private String reference; // MSN-2024-0001
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, unique = true, length = 200)
     private String title;
 
     @Column(name = "client_id")
@@ -196,6 +196,12 @@ public class Mission {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         this.totalCost = this.fuelCost.add(this.tollCost).add(this.otherExpenses);
+        
+        // Pour les missions sous-traitées, le coût inclut le montant reversé au partenaire
+        if (this.modeExecution == com.transport.tms.domain.enums.ModeExecution.SUBCONTRACTED 
+                && this.montantReversePartenaire != null) {
+            this.totalCost = this.totalCost.add(this.montantReversePartenaire);
+        }
     }
 
 

@@ -10,6 +10,8 @@ public record PleinCarburantResponse(
         String vehiculeImmatriculation,
         Long chauffeurId,
         String chauffeurNom,
+        Long missionId,
+        String missionRef,
         LocalDateTime fillingDate,
         String fuelType,
         BigDecimal quantityLiters,

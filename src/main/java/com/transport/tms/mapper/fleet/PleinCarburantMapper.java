@@ -49,6 +49,8 @@ public class PleinCarburantMapper {
                 plein.getVehicule().getImmatriculation(),
                 plein.getChauffeur() != null ? plein.getChauffeur().getId() : null,
                 chauffeurNom,
+                plein.getMission() != null ? plein.getMission().getId() : null,
+                plein.getMission() != null ? plein.getMission().getReference() : null,
                 plein.getFillingDate(),
                 plein.getFuelType(),
                 plein.getQuantityLiters(),

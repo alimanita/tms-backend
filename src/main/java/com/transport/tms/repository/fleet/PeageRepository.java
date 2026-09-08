@@ -16,6 +16,26 @@ public interface PeageRepository extends JpaRepository<Peage, Long> {
     List<Peage> findByMissionId(Long missionId);
     Page<Peage> findAll(Pageable pageable);
 
+    boolean existsByReceiptNumber(String receiptNumber);
+    boolean existsByReceiptNumberAndIdNot(String receiptNumber, Long id);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT DISTINCT p FROM Peage p
+        LEFT JOIN FETCH p.vehicule v
+        LEFT JOIN FETCH p.chauffeur c
+        WHERE p.mission IS NULL
+        AND p.datePassage BETWEEN :debut AND :fin
+        AND (:filterVehicule = false OR v.id IN :vehiculeIds)
+        AND (:filterChauffeur = false OR c.id IN :chauffeurIds)
+    """)
+    List<Peage> findStandaloneForBilanExploitation(
+            @org.springframework.data.repository.query.Param("debut") java.time.LocalDateTime debut,
+            @org.springframework.data.repository.query.Param("fin") java.time.LocalDateTime fin,
+            @org.springframework.data.repository.query.Param("vehiculeIds") List<Long> vehiculeIds,
+            @org.springframework.data.repository.query.Param("filterVehicule") boolean filterVehicule,
+            @org.springframework.data.repository.query.Param("chauffeurIds") List<Long> chauffeurIds,
+            @org.springframework.data.repository.query.Param("filterChauffeur") boolean filterChauffeur);
+
     @org.springframework.data.jpa.repository.Query("""
             SELECT COALESCE(SUM(p.amountTTC), 0)
             FROM Peage p
