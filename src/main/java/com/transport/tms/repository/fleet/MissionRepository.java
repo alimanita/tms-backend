@@ -32,7 +32,8 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
         LEFT JOIN FETCH m.vehicule v
         LEFT JOIN FETCH m.chauffeurSlots cs
         LEFT JOIN FETCH cs.chauffeur c
-        WHERE (COALESCE(m.actualReturn, m.plannedDeparture) BETWEEN :debut AND :fin)
+        WHERE m.statut = com.transport.tms.domain.entity.fleet.Mission.StatutMission.COMPLETED
+        AND (COALESCE(m.actualReturn, m.plannedDeparture) BETWEEN :debut AND :fin)
         AND (:filterVehicule = false OR v.id IN :vehiculeIds)
         AND (:filterChauffeur = false OR c.id IN :chauffeurIds)
     """)
@@ -240,5 +241,16 @@ public interface MissionRepository extends JpaRepository<Mission, Long> {
             @Param("anDebut") int anDebut,
             @Param("anFin") int anFin);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE PleinCarburant p SET p.mission = null WHERE p.mission.id = :missionId")
+    void unbindFuelFillings(@Param("missionId") Long missionId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Peage p SET p.mission = null WHERE p.mission.id = :missionId")
+    void unbindPeages(@Param("missionId") Long missionId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "DELETE FROM mission_chauffeur WHERE mission_id = :missionId", nativeQuery = true)
+    void deleteMissionChauffeurNative(@Param("missionId") Long missionId);
 }
 

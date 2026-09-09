@@ -45,6 +45,7 @@ public class PeageController implements PeageApi {
     }
 
     @Override
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Void> delete(Long id) {
         peageService.delete(id);
         return ResponseEntity.noContent().build();

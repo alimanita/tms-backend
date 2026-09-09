@@ -52,6 +52,7 @@ public class PleinCarburantController implements PleinCarburantApi {
 
 
     @Override
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Void> delete(Long id) {
         pleinCarburantService.delete(id);
         return ResponseEntity.noContent().build();

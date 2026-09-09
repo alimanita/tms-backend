@@ -520,6 +520,33 @@ public class MissionServiceImpl implements MissionService {
     }
 
     @Override
+    public void delete(Long id) {
+        Mission mission = findEntityById(id);
+        if (mission.getLetterMissionPath() != null) {
+            try {
+                fileStorageService.delete(mission.getLetterMissionPath(), "");
+            } catch (Exception e) {
+                log.warn("Impossible de supprimer la lettre de mission: {}", e.getMessage());
+            }
+        }
+        
+        // 1. Découpler pleins et péages liés à la mission
+        missionRepository.unbindFuelFillings(id);
+        missionRepository.unbindPeages(id);
+        
+        // 2. Supprimer les références dans la table mission_chauffeur
+        missionRepository.deleteMissionChauffeurNative(id);
+
+        // 3. Vider les collections enfants (slots chauffeurs et dépenses de mission)
+        mission.getChauffeurSlots().clear();
+        mission.getDepenses().clear();
+        missionRepository.saveAndFlush(mission);
+
+        // 4. Supprimer la mission
+        missionRepository.delete(mission);
+    }
+
+    @Override
     public org.springframework.core.io.Resource getDepenseReceipt(Long id, Long depenseId) {
         DepenseMission depense = depenseMissionRepository.findById(depenseId)
                 .orElseThrow(() -> new EntityNotFoundException("Dépense introuvable"));

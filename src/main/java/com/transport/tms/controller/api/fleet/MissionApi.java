@@ -32,6 +32,9 @@ public interface MissionApi {
                                            @RequestPart("mission") @Valid MissionRequest request,
                                            @RequestPart(value = "letter", required = false) org.springframework.web.multipart.MultipartFile letter);
 
+    @DeleteMapping("/{id}")
+    ResponseEntity<Void> delete(@PathVariable Long id);
+
     @GetMapping("/{id}/letter")
     ResponseEntity<org.springframework.core.io.Resource> downloadLetter(@PathVariable Long id);
 

@@ -47,6 +47,13 @@ public class MissionController implements MissionApi {
     }
 
     @Override
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'SUPERADMIN', 'ADMIN')")
+    public ResponseEntity<Void> delete(Long id) {
+        missionService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
     public ResponseEntity<org.springframework.core.io.Resource> downloadLetter(Long id) {
         org.springframework.core.io.Resource file = missionService.getLetterMission(id);
         String contentType = "application/octet-stream";

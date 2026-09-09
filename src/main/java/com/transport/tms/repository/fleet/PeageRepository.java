@@ -25,7 +25,7 @@ public interface PeageRepository extends JpaRepository<Peage, Long> {
         LEFT JOIN FETCH p.chauffeur c
         WHERE p.datePassage BETWEEN :debut AND :fin
         AND (:filterVehicule = false OR v.id IN :vehiculeIds)
-        AND (:filterChauffeur = false OR c.id IN :chauffeurIds OR (c.id IS NULL AND v.id IN (SELECT m.vehicule.id FROM Mission m JOIN m.chauffeurSlots cs WHERE cs.chauffeur.id IN :chauffeurIds)))
+        AND (:filterChauffeur = false OR c.id IN :chauffeurIds OR (c.id IS NULL AND v.id IN (SELECT m.vehicule.id FROM Mission m JOIN m.chauffeurSlots cs WHERE m.statut = com.transport.tms.domain.entity.fleet.Mission.StatutMission.COMPLETED AND cs.chauffeur.id IN :chauffeurIds)))
     """)
     List<Peage> findStandaloneForBilanExploitation(
             @org.springframework.data.repository.query.Param("debut") java.time.LocalDateTime debut,

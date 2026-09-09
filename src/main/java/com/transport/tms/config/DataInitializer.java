@@ -41,6 +41,18 @@ public class DataInitializer {
     private String adminPrenom;
 
     @Bean
+    public CommandLineRunner updateDatabaseConstraints(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        return args -> {
+            try {
+                jdbcTemplate.execute("ALTER TABLE mission DROP CONSTRAINT IF EXISTS mission_mode_execution_check");
+                log.info("Contrainte mission_mode_execution_check supprimée avec succès.");
+            } catch (Exception e) {
+                log.warn("Erreur lors de la suppression de la contrainte mission_mode_execution_check: {}", e.getMessage());
+            }
+        };
+    }
+
+    @Bean
     public CommandLineRunner initSuperAdmin() {
         return args -> {
             log.info("Vérification de l'existence du super admin...");
