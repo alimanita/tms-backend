@@ -26,8 +26,17 @@ public class MissionController implements MissionApi {
     private final ReceiptOcrService receiptOcrService;
 
     @Override
-    public ResponseEntity<Page<MissionResponse>> findAll(Pageable pageable) {
-        return ResponseEntity.ok(missionService.findAll(pageable));
+    public ResponseEntity<Page<MissionResponse>> findAll(
+            Pageable pageable,
+            com.transport.tms.domain.entity.fleet.Mission.StatutMission statut,
+            String modeExecution,
+            List<Long> chauffeurIds,
+            List<Long> vehiculeIds,
+            String dateDebut,
+            String dateFin,
+            String search
+    ) {
+        return ResponseEntity.ok(missionService.findAll(pageable, statut, modeExecution, chauffeurIds, vehiculeIds, dateDebut, dateFin, search));
     }
 
     @Override

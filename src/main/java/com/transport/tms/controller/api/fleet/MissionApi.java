@@ -17,7 +17,16 @@ import java.util.List;
 public interface MissionApi {
 
     @GetMapping
-    ResponseEntity<Page<MissionResponse>> findAll(Pageable pageable);
+    ResponseEntity<Page<MissionResponse>> findAll(
+            Pageable pageable,
+            @RequestParam(required = false) com.transport.tms.domain.entity.fleet.Mission.StatutMission statut,
+            @RequestParam(required = false) String modeExecution,
+            @RequestParam(required = false) List<Long> chauffeurIds,
+            @RequestParam(required = false) List<Long> vehiculeIds,
+            @RequestParam(required = false) String dateDebut,
+            @RequestParam(required = false) String dateFin,
+            @RequestParam(required = false) String search
+    );
 
     @GetMapping("/{id}")
     ResponseEntity<MissionResponse> findById(@PathVariable Long id);

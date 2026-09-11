@@ -16,7 +16,16 @@ public interface MissionService {
     MissionResponse uploadLetter(Long id, org.springframework.web.multipart.MultipartFile file);
     org.springframework.core.io.Resource getLetterMission(Long id);
     MissionResponse findById(Long id);
-    Page<MissionResponse> findAll(Pageable pageable);
+    Page<MissionResponse> findAll(
+            Pageable pageable,
+            com.transport.tms.domain.entity.fleet.Mission.StatutMission statut,
+            String modeExecution,
+            List<Long> chauffeurIds,
+            List<Long> vehiculeIds,
+            String dateDebut,
+            String dateFin,
+            String search
+    );
     List<MissionResponse> findByVehicule(Long vehiculeId);
     List<MissionResponse> findByChauffeur(Long chauffeurId);
     List<MissionResponse> findEnCours();

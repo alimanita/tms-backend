@@ -242,15 +242,16 @@ public class MissionServiceImpl implements MissionService {
             mission.setExterneChauffeur(null);
             mission.setStatutSousTraitance(null);
 
-            if (request.vehiculeId() == null) {
-                throw new InvalidOperationException("Un véhicule est requis pour une mission interne");
+            if (request.vehiculeId() != null) {
+                Vehicule vehicule = findVehiculeById(request.vehiculeId());
+                // La disponibilité n'est vérifiée qu'au démarrage, pas à la planification
+                if (vehicule.getStatut() != StatutVehicule.DISPONIBLE) {
+                    log.warn("Planification avec véhicule non disponible ({}): statut={}", vehicule.getReference(), vehicule.getStatut());
+                }
+                mission.setVehicule(vehicule);
+            } else {
+                mission.setVehicule(null);
             }
-            Vehicule vehicule = findVehiculeById(request.vehiculeId());
-            // La disponibilité n'est vérifiée qu'au démarrage, pas à la planification
-            if (vehicule.getStatut() != StatutVehicule.DISPONIBLE) {
-                log.warn("Planification avec véhicule non disponible ({}): statut={}", vehicule.getReference(), vehicule.getStatut());
-            }
-            mission.setVehicule(vehicule);
 
             if (mission.getChauffeurSlots() == null) {
                 mission.setChauffeurSlots(new ArrayList<>());
@@ -296,7 +297,16 @@ public class MissionServiceImpl implements MissionService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<MissionResponse> findAll(Pageable pageable) {
+    public Page<MissionResponse> findAll(
+            Pageable pageable,
+            Mission.StatutMission statut,
+            String modeExecution,
+            List<Long> chauffeurIds,
+            List<Long> vehiculeIds,
+            String dateDebut,
+            String dateFin,
+            String search
+    ) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         if (!estGestion(auth)) {
@@ -304,8 +314,88 @@ public class MissionServiceImpl implements MissionService {
                     "Accès réservé aux rôles de gestion. Utilisez /fleet/missions/chauffeur/{chauffeurId} pour vos propres missions.");
         }
 
-        log.info("Récupération paginée de toutes les missions");
-        return missionRepository.findAll(pageable).map(mapper::toResponse);
+        org.springframework.data.jpa.domain.Specification<Mission> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            if (statut != null) {
+                predicates.add(cb.equal(root.get("statut"), statut));
+            }
+
+            if (modeExecution != null && !modeExecution.isBlank()) {
+                predicates.add(cb.equal(root.get("modeExecution"), com.transport.tms.domain.enums.ModeExecution.valueOf(modeExecution)));
+            }
+
+            if (vehiculeIds != null && !vehiculeIds.isEmpty()) {
+                predicates.add(root.get("vehicule").get("id").in(vehiculeIds));
+            }
+
+            if (chauffeurIds != null && !chauffeurIds.isEmpty()) {
+                var slotsJoin = root.join("chauffeurSlots", jakarta.persistence.criteria.JoinType.LEFT);
+                predicates.add(slotsJoin.get("chauffeur").get("id").in(chauffeurIds));
+            }
+
+            if (dateDebut != null && !dateDebut.isBlank()) {
+                java.time.LocalDateTime start = java.time.LocalDate.parse(dateDebut).atStartOfDay();
+                predicates.add(cb.greaterThanOrEqualTo(root.get("plannedDeparture"), start));
+            }
+
+            if (dateFin != null && !dateFin.isBlank()) {
+                java.time.LocalDateTime end = java.time.LocalDate.parse(dateFin).atTime(23, 59, 59);
+                predicates.add(cb.lessThanOrEqualTo(root.get("plannedDeparture"), end));
+            }
+
+            if (search != null && !search.isBlank()) {
+                String term = search.trim();
+                String searchLike = "%" + term.toLowerCase() + "%";
+
+                List<jakarta.persistence.criteria.Predicate> searchOrs = new ArrayList<>();
+
+                // Champs texte direct
+                searchOrs.add(cb.like(cb.lower(root.get("reference")), searchLike));
+                searchOrs.add(cb.like(cb.lower(root.get("title")), searchLike));
+                searchOrs.add(cb.like(cb.lower(root.get("departureLocation")), searchLike));
+                searchOrs.add(cb.like(cb.lower(root.get("arrivalLocation")), searchLike));
+
+                // Recherche partielle sur les tarifs (revenue & commission)
+                searchOrs.add(cb.like(root.get("revenue").as(String.class), searchLike));
+                searchOrs.add(cb.like(root.get("montantCommission").as(String.class), searchLike));
+
+                // Recherche numérique exacte si la saisie est un nombre (ex: 25, 250, 225.5)
+                try {
+                    java.math.BigDecimal searchNum = new java.math.BigDecimal(term.replace(",", "."));
+                    searchOrs.add(cb.equal(root.get("revenue"), searchNum));
+                    searchOrs.add(cb.equal(root.get("montantCommission"), searchNum));
+                } catch (Exception ignored) {
+                }
+
+                // Recherche sur nom de partenaire
+                try {
+                    var partnerJoin = root.join("partenaire", jakarta.persistence.criteria.JoinType.LEFT);
+                    searchOrs.add(cb.like(cb.lower(partnerJoin.get("nom")), searchLike));
+                } catch (Exception ignored) {
+                }
+
+                // Recherche sur nom/prénom de chauffeur
+                try {
+                    var slotsSearchJoin = root.join("chauffeurSlots", jakarta.persistence.criteria.JoinType.LEFT);
+                    var chauffeurSearchJoin = slotsSearchJoin.join("chauffeur", jakarta.persistence.criteria.JoinType.LEFT);
+                    searchOrs.add(cb.like(cb.lower(chauffeurSearchJoin.get("nom")), searchLike));
+                    searchOrs.add(cb.like(cb.lower(chauffeurSearchJoin.get("prenom")), searchLike));
+                } catch (Exception ignored) {
+                }
+
+                predicates.add(cb.or(searchOrs.toArray(new jakarta.persistence.criteria.Predicate[0])));
+            }
+
+            if (query != null) {
+                query.distinct(true);
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        log.info("Récupération paginée et filtrée de toutes les missions");
+        return missionRepository.findAll(spec, pageable).map(mapper::toResponse);
     }
 
 
