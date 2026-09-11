@@ -445,25 +445,28 @@ public class MissionServiceImpl implements MissionService {
         Mission mission = findEntityById(id);
         mission.demarrer();
 
-        // Enregistrer le kilométrage de départ si fourni
-        if (mileageAtDeparture != null) {
-            mission.setMileageAtDeparture(mileageAtDeparture);
-            // Mettre à jour aussi le kilométrage actuel du véhicule
-            mission.getVehicule().setKilometrageActuel(mileageAtDeparture);
-        }
-
         Vehicule vehicule = mission.getVehicule();
-        vehicule.setStatut(StatutVehicule.EN_MISSION);
-        vehiculeRepository.save(vehicule);
+        if (vehicule != null) {
+            if (mileageAtDeparture != null) {
+                mission.setMileageAtDeparture(mileageAtDeparture);
+                vehicule.setKilometrageActuel(mileageAtDeparture);
+            }
+            vehicule.setStatut(StatutVehicule.EN_MISSION);
+            vehiculeRepository.save(vehicule);
+        } else if (mileageAtDeparture != null) {
+            mission.setMileageAtDeparture(mileageAtDeparture);
+        }
 
         for (com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot : mission.getChauffeurSlots()) {
             Chauffeur chauffeur = slot.getChauffeur();
-            chauffeur.setStatut(StatutChauffeur.EN_MISSION);
-            chauffeurRepository.save(chauffeur);
+            if (chauffeur != null) {
+                chauffeur.setStatut(StatutChauffeur.EN_MISSION);
+                chauffeurRepository.save(chauffeur);
+            }
         }
 
-        log.info("Mission {} démarrée — Véhicule {} en mission (km départ: {})",
-                mission.getReference(), vehicule.getReference(), mileageAtDeparture);
+        log.info("Mission {} démarrée (km départ: {})",
+                mission.getReference(), mileageAtDeparture);
         return mapper.toResponse(missionRepository.save(mission));
     }
 
@@ -471,23 +474,26 @@ public class MissionServiceImpl implements MissionService {
     public MissionResponse cloturer(Long id, java.math.BigDecimal mileageAtReturn) {
         Mission mission = findEntityById(id);
 
-        // Enregistrer le kilométrage de retour si fourni
-        if (mileageAtReturn != null) {
+        Vehicule vehicule = mission.getVehicule();
+        if (vehicule != null) {
+            if (mileageAtReturn != null) {
+                mission.setMileageAtReturn(mileageAtReturn);
+                vehicule.setKilometrageActuel(mileageAtReturn);
+            }
+            vehicule.setStatut(StatutVehicule.DISPONIBLE);
+            vehiculeRepository.save(vehicule);
+        } else if (mileageAtReturn != null) {
             mission.setMileageAtReturn(mileageAtReturn);
-            // Mettre à jour le kilométrage actuel du véhicule
-            mission.getVehicule().setKilometrageActuel(mileageAtReturn);
         }
 
         mission.cloturer();
 
-        Vehicule vehicule = mission.getVehicule();
-        vehicule.setStatut(StatutVehicule.DISPONIBLE);
-        vehiculeRepository.save(vehicule);
-
         for (com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot : mission.getChauffeurSlots()) {
             Chauffeur chauffeur = slot.getChauffeur();
-            chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
-            chauffeurRepository.save(chauffeur);
+            if (chauffeur != null) {
+                chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
+                chauffeurRepository.save(chauffeur);
+            }
         }
 
         log.info("Mission {} clôturée (km retour: {})", mission.getReference(), mileageAtReturn);
@@ -503,12 +509,16 @@ public class MissionServiceImpl implements MissionService {
 
         // Libérer véhicule et chauffeur si déjà en mission (MS-06)
         if (mission.getStatut() == Mission.StatutMission.IN_PROGRESS) {
-            mission.getVehicule().setStatut(StatutVehicule.DISPONIBLE);
-            vehiculeRepository.save(mission.getVehicule());
+            if (mission.getVehicule() != null) {
+                mission.getVehicule().setStatut(StatutVehicule.DISPONIBLE);
+                vehiculeRepository.save(mission.getVehicule());
+            }
             for (com.transport.tms.domain.entity.fleet.MissionChauffeurSlot slot : mission.getChauffeurSlots()) {
                 Chauffeur chauffeur = slot.getChauffeur();
-                chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
-                chauffeurRepository.save(chauffeur);
+                if (chauffeur != null) {
+                    chauffeur.setStatut(StatutChauffeur.DISPONIBLE);
+                    chauffeurRepository.save(chauffeur);
+                }
             }
         }
 
