@@ -21,16 +21,16 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtil {
 
-  // Clé secrète pour signer les tokens (à mettre dans application.properties)
-  @Value("${jwt.secret:mySecretKeyForJWTTokenGenerationThatIsVeryLongAndSecure123456789}")
+  // Clé secrète pour signer les tokens
+  @Value("${tms.jwt.secret:${jwt.secret:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBobWFjU0hBMzg0LWF0LWxlYXN0LTM4NC1iaXRzLWxvbmcx}}")
   private String SECRET_KEY;
 
-  // Durée de validité du token (24 heures par défaut)
-  @Value("${jwt.expiration:86400000}")
+  // Durée de validité du token (lue depuis tms.access-token-expiration-ms ou jwt.expiration)
+  @Value("${tms.access-token-expiration-ms:${jwt.expiration:86400000}}")
   private long JWT_TOKEN_VALIDITY;
 
-  // Durée de validité du refresh token (7 jours par défaut)
-  @Value("${jwt.refresh-expiration:604800000}")
+  // Durée de validité du refresh token
+  @Value("${tms.refresh-token-expiration-ms:${jwt.refresh-expiration:604800000}}")
   private long JWT_REFRESH_TOKEN_VALIDITY;
 
   /**

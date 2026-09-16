@@ -27,8 +27,8 @@ server:
 tms:
   jwt:
     secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBobWFjU0hBMzg0LWF0LWxlYXN0LTM4NC1iaXRzLWxvbmcx}
-    access-token-expiration-ms: 9000000
-    refresh-token-expiration-ms: 6048000000
+  access-token-expiration-ms: 1800000
+  refresh-token-expiration-ms: 2592000000
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:8080}
   anthropic:

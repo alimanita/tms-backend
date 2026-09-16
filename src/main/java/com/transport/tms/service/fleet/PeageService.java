@@ -14,6 +14,7 @@ public interface PeageService {
     Page<PeageResponse> findAll(Pageable pageable);
     PeageResponse findById(Long id);
     PeageResponse create(PeageRequest request, MultipartFile proof);
+    PeageResponse update(Long id, PeageRequest request, MultipartFile proof);
     void delete(Long id);
     Resource getProofFile(Long id);
     OcrTollResult extractTollData(MultipartFile proof);

@@ -28,6 +28,12 @@ public interface PeageApi {
             @RequestPart("data") @Valid PeageRequest request,
             @RequestPart(value = "proof", required = false) MultipartFile proof);
 
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<PeageResponse> update(
+            @PathVariable Long id,
+            @RequestPart("data") @Valid PeageRequest request,
+            @RequestPart(value = "proof", required = false) MultipartFile proof);
+
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable Long id);
 

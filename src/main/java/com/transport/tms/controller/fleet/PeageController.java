@@ -45,6 +45,11 @@ public class PeageController implements PeageApi {
     }
 
     @Override
+    public ResponseEntity<PeageResponse> update(Long id, PeageRequest request, MultipartFile proof) {
+        return ResponseEntity.ok(peageService.update(id, request, proof));
+    }
+
+    @Override
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_SUPERADMIN', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Void> delete(Long id) {
         peageService.delete(id);

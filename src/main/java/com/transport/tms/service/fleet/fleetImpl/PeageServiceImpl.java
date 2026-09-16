@@ -115,6 +115,59 @@ public class PeageServiceImpl implements PeageService {
 
     @Override
     @Transactional
+    public PeageResponse update(Long id, PeageRequest request, MultipartFile proof) {
+        if (request.receiptNumber() != null && !request.receiptNumber().isBlank() &&
+            peageRepository.existsByReceiptNumberAndIdNot(request.receiptNumber(), id)) {
+            throw new com.transport.tms.exception.InvalidOperationException("Un péage avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+        }
+
+        Peage peage = findEntityById(id);
+
+        Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
+                .orElseThrow(() -> new EntityNotFoundException("Véhicule non trouvé"));
+
+        peage.setVehicule(vehicule);
+        peage.setDatePassage(request.datePassage());
+        peage.setAmountHT(request.amountHT());
+        peage.setTvaRate(request.tvaRate());
+        peage.setTvaAmount(request.tvaAmount());
+        peage.setAmountTTC(request.amountTTC());
+        peage.setGareEntree(request.gareEntree());
+        peage.setGareSortie(request.gareSortie());
+        peage.setReceiptNumber(request.receiptNumber());
+        peage.setSocieteAutoroute(request.societeAutoroute());
+        peage.setNotes(request.notes());
+
+        if (request.chauffeurId() != null) {
+            Chauffeur chauffeur = chauffeurRepository.findById(request.chauffeurId())
+                    .orElseThrow(() -> new EntityNotFoundException("Chauffeur non trouvé"));
+            peage.setChauffeur(chauffeur);
+        } else {
+            peage.setChauffeur(null);
+        }
+
+        if (request.missionId() != null) {
+            Mission mission = missionRepository.findById(request.missionId())
+                    .orElseThrow(() -> new EntityNotFoundException("Mission non trouvée"));
+            peage.setMission(mission);
+        } else {
+            peage.setMission(null);
+        }
+
+        if (proof != null && !proof.isEmpty()) {
+            if (peage.getProofFilePath() != null) {
+                fileStorageService.delete(peage.getProofFilePath(), "");
+            }
+            String filename = fileStorageService.store(proof, "");
+            peage.setProofFilePath(filename);
+        }
+
+        peage = peageRepository.save(peage);
+        return peageMapper.toResponse(peage);
+    }
+
+    @Override
+    @Transactional
     public void delete(Long id) {
         Peage peage = findEntityById(id);
         if (peage.getProofFilePath() != null) {

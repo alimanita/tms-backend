@@ -131,29 +131,7 @@
         }
       ]
     },
-    {
-      "route": "commercial",
-      "name": "Commercial",
-      "type": "sub",
-      "icon": "storefront",
-      "permissions": {
-        "except": ["CHAUFFEUR", "MECANICIEN", "COMPTABLE"]
-      },
-      "children": [
-        {
-          "route": "/customers",
-          "name": "Clients",
-          "type": "link",
-          "icon": "people"
-        },
-        {
-          "route": "/orders",
-          "name": "Commandes",
-          "type": "link",
-          "icon": "receipt_long"
-        }
-      ]
-    },
+
     {
       "route": "finance_admin",
       "name": "Finance & Système",
