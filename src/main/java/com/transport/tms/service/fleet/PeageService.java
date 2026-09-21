@@ -12,6 +12,7 @@ import java.util.List;
 
 public interface PeageService {
     Page<PeageResponse> findAll(Pageable pageable);
+    Page<PeageResponse> findAll(Long vehiculeId, Long chauffeurId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
     PeageResponse findById(Long id);
     PeageResponse create(PeageRequest request, MultipartFile proof);
     PeageResponse update(Long id, PeageRequest request, MultipartFile proof);

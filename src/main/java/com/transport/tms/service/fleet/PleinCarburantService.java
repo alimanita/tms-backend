@@ -15,6 +15,7 @@ public interface PleinCarburantService {
     PleinCarburantResponse update(Long id, PleinCarburantRequest request, MultipartFile proof);
     PleinCarburantResponse findById(Long id);
     Page<PleinCarburantResponse> findAll(Pageable pageable);
+    Page<PleinCarburantResponse> findAll(Long vehiculeId, Long chauffeurId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
     List<PleinCarburantResponse> findByVehicule(Long vehiculeId);
     List<PleinCarburantResponse> findByChauffeur(Long chauffeurId);
     void delete(Long id);

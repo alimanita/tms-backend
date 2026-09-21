@@ -63,12 +63,33 @@ public class PeageServiceImpl implements PeageService {
     @Override
     @Transactional(readOnly = true)
     public Page<PeageResponse> findAll(Pageable pageable) {
-        Chauffeur chauffeur = resolveChauffeurFromConnectedUser();
-        if (chauffeur != null) {
-            return peageRepository.findByChauffeurId(chauffeur.getId(), pageable)
-                    .map(peageMapper::toResponse);
-        }
-        return peageRepository.findAll(pageable).map(peageMapper::toResponse);
+        return findAll(null, null, null, null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PeageResponse> findAll(Long vehiculeId, Long chauffeurId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable) {
+        Chauffeur chauffeurConnecte = resolveChauffeurFromConnectedUser();
+        Long finalChauffeurId = (chauffeurConnecte != null) ? chauffeurConnecte.getId() : chauffeurId;
+
+        org.springframework.data.jpa.domain.Specification<Peage> spec = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (vehiculeId != null) {
+                predicates.add(cb.equal(root.get("vehicule").get("id"), vehiculeId));
+            }
+            if (finalChauffeurId != null) {
+                predicates.add(cb.equal(root.get("chauffeur").get("id"), finalChauffeurId));
+            }
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("datePassage"), startDate));
+            }
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("datePassage"), endDate));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return peageRepository.findAll(spec, pageable).map(peageMapper::toResponse);
     }
 
     @Override

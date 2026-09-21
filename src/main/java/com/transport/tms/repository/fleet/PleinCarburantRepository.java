@@ -5,6 +5,7 @@ import com.transport.tms.domain.entity.fleet.PleinCarburant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, Long> {
+public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, Long>, JpaSpecificationExecutor<PleinCarburant> {
 
     Optional<PleinCarburant> findByReference(String reference);
 
@@ -23,6 +24,20 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
 
     boolean existsByReceiptNumber(String receiptNumber);
     boolean existsByReceiptNumberAndIdNot(String receiptNumber, Long id);
+
+    @Query("""
+        SELECT p FROM PleinCarburant p
+        WHERE (:vehiculeId IS NULL OR p.vehicule.id = :vehiculeId)
+        AND (:chauffeurId IS NULL OR p.chauffeur.id = :chauffeurId)
+        AND (:startDate IS NULL OR p.fillingDate >= :startDate)
+        AND (:endDate IS NULL OR p.fillingDate <= :endDate)
+    """)
+    Page<PleinCarburant> findAllFiltered(
+            @Param("vehiculeId") Long vehiculeId,
+            @Param("chauffeurId") Long chauffeurId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
 
     @Query("""
         SELECT DISTINCT p FROM PleinCarburant p

@@ -29,8 +29,16 @@ public class PeageController implements PeageApi {
     private final PeageService peageService;
 
     @Override
-    public ResponseEntity<Page<PeageResponse>> findAll(Pageable pageable) {
-        return ResponseEntity.ok(peageService.findAll(pageable));
+    public ResponseEntity<Page<PeageResponse>> findAll(Long vehiculeId, Long chauffeurId, String startDate, String endDate, Pageable pageable) {
+        java.time.LocalDateTime startLdt = null;
+        java.time.LocalDateTime endLdt = null;
+        if (startDate != null && !startDate.isBlank()) {
+            try { startLdt = java.time.LocalDate.parse(startDate).atStartOfDay(); } catch (Exception ignored) {}
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            try { endLdt = java.time.LocalDate.parse(endDate).atTime(23, 59, 59); } catch (Exception ignored) {}
+        }
+        return ResponseEntity.ok(peageService.findAll(vehiculeId, chauffeurId, startLdt, endLdt, pageable));
     }
 
     @Override

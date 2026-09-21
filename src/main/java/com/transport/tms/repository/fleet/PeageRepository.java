@@ -21,6 +21,20 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
     boolean existsByReceiptNumberAndIdNot(String receiptNumber, Long id);
 
     @org.springframework.data.jpa.repository.Query("""
+        SELECT p FROM Peage p
+        WHERE (:vehiculeId IS NULL OR p.vehicule.id = :vehiculeId)
+        AND (:chauffeurId IS NULL OR p.chauffeur.id = :chauffeurId)
+        AND (:startDate IS NULL OR p.datePassage >= :startDate)
+        AND (:endDate IS NULL OR p.datePassage <= :endDate)
+    """)
+    Page<Peage> findAllFiltered(
+            @org.springframework.data.repository.query.Param("vehiculeId") Long vehiculeId,
+            @org.springframework.data.repository.query.Param("chauffeurId") Long chauffeurId,
+            @org.springframework.data.repository.query.Param("startDate") java.time.LocalDateTime startDate,
+            @org.springframework.data.repository.query.Param("endDate") java.time.LocalDateTime endDate,
+            Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query("""
         SELECT DISTINCT p FROM Peage p
         LEFT JOIN FETCH p.vehicule v
         LEFT JOIN FETCH p.chauffeur c

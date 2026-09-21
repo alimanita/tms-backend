@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.List;
 import java.util.UUID;
@@ -217,14 +218,33 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
     @Override
     @Transactional(readOnly = true)
     public Page<PleinCarburantResponse> findAll(Pageable pageable) {
-        Chauffeur chauffeur = resolveChauffeurFromConnectedUser();
-        if (chauffeur != null) {
-            // ROLE_CHAUFFEUR → uniquement ses propres pleins
-            return pleinRepository.findByChauffeurId(chauffeur.getId(), pageable)
-                    .map(mapper::toResponse);
-        }
-        // Admin / Gestionnaire → tous les pleins
-        return pleinRepository.findAll(pageable).map(mapper::toResponse);
+        return findAll(null, null, null, null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PleinCarburantResponse> findAll(Long vehiculeId, Long chauffeurId, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+        Chauffeur chauffeurConnecte = resolveChauffeurFromConnectedUser();
+        Long finalChauffeurId = (chauffeurConnecte != null) ? chauffeurConnecte.getId() : chauffeurId;
+
+        org.springframework.data.jpa.domain.Specification<PleinCarburant> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (vehiculeId != null) {
+                predicates.add(cb.equal(root.get("vehicule").get("id"), vehiculeId));
+            }
+            if (finalChauffeurId != null) {
+                predicates.add(cb.equal(root.get("chauffeur").get("id"), finalChauffeurId));
+            }
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("fillingDate"), startDate));
+            }
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("fillingDate"), endDate));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return pleinRepository.findAll(spec, pageable).map(mapper::toResponse);
     }
 
     @Override

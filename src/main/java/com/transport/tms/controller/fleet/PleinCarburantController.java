@@ -28,8 +28,16 @@ public class PleinCarburantController implements PleinCarburantApi {
     private final PleinCarburantService pleinCarburantService;
 
     @Override
-    public ResponseEntity<Page<PleinCarburantResponse>> findAll(Pageable pageable) {
-        return ResponseEntity.ok(pleinCarburantService.findAll(pageable));
+    public ResponseEntity<Page<PleinCarburantResponse>> findAll(Long vehiculeId, Long chauffeurId, String startDate, String endDate, Pageable pageable) {
+        java.time.LocalDateTime startLdt = null;
+        java.time.LocalDateTime endLdt = null;
+        if (startDate != null && !startDate.isBlank()) {
+            try { startLdt = java.time.LocalDate.parse(startDate).atStartOfDay(); } catch (Exception ignored) {}
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            try { endLdt = java.time.LocalDate.parse(endDate).atTime(23, 59, 59); } catch (Exception ignored) {}
+        }
+        return ResponseEntity.ok(pleinCarburantService.findAll(vehiculeId, chauffeurId, startLdt, endLdt, pageable));
     }
 
     @Override

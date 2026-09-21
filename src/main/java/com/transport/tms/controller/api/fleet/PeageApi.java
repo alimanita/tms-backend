@@ -18,7 +18,12 @@ import java.util.List;
 public interface PeageApi {
 
     @GetMapping
-    ResponseEntity<Page<PeageResponse>> findAll(Pageable pageable);
+    ResponseEntity<Page<PeageResponse>> findAll(
+            @RequestParam(value = "vehiculeId", required = false) Long vehiculeId,
+            @RequestParam(value = "chauffeurId", required = false) Long chauffeurId,
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate,
+            Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<PeageResponse> findById(@PathVariable Long id);
