@@ -15,7 +15,13 @@ import com.transport.tms.domain.entity.fleet.Mission;
 
 
 @Entity
-@Table(name = "fuel_filling")
+@Table(name = "fuel_filling", indexes = {
+    @Index(name = "idx_fuel_filling_date", columnList = "filling_date DESC"),
+    @Index(name = "idx_fuel_vehicle_id", columnList = "vehicle_id"),
+    @Index(name = "idx_fuel_driver_id", columnList = "driver_id"),
+    @Index(name = "idx_fuel_mission_id", columnList = "mission_id"),
+    @Index(name = "idx_fuel_vehicle_date", columnList = "vehicle_id, filling_date DESC")
+})
 @EntityListeners(AuditingEntityListener.class)
 @Getter @Setter @NoArgsConstructor
 public class PleinCarburant {

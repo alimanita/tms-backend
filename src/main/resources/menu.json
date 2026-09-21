@@ -70,6 +70,15 @@
           }
         },
         {
+          "route": "/fleet/batch-tickets",
+          "name": "Traitement masse IA",
+          "type": "link",
+          "icon": "auto_awesome",
+          "permissions": {
+            "except": ["MECANICIEN"]
+          }
+        },
+        {
           "route": "/fleet/missions",
           "name": "Missions",
           "type": "link",

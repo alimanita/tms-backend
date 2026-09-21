@@ -13,7 +13,13 @@ import java.time.LocalDateTime;
 import com.transport.tms.domain.entity.fleet.Mission;
 
 @Entity
-@Table(name = "peage")
+@Table(name = "peage", indexes = {
+    @Index(name = "idx_peage_date_passage", columnList = "date_passage DESC"),
+    @Index(name = "idx_peage_vehicle_id", columnList = "vehicle_id"),
+    @Index(name = "idx_peage_driver_id", columnList = "driver_id"),
+    @Index(name = "idx_peage_mission_id", columnList = "mission_id"),
+    @Index(name = "idx_peage_vehicle_date", columnList = "vehicle_id, date_passage DESC")
+})
 @EntityListeners(AuditingEntityListener.class)
 @Getter @Setter @NoArgsConstructor
 public class Peage {
