@@ -6,8 +6,9 @@ import com.transport.tms.dto.fleet.response.BatchTicketSaveResult;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 public interface BatchTicketOcrService {
     List<BatchTicketItemResult> analyzeBatch(List<MultipartFile> files);
-    BatchTicketSaveResult saveBatch(BatchTicketSaveRequest request);
+    BatchTicketSaveResult saveBatch(BatchTicketSaveRequest request, Map<Integer, MultipartFile> proofFiles);
 }

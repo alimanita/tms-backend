@@ -249,7 +249,7 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
     }
 
     @Override
-    public BatchTicketSaveResult saveBatch(BatchTicketSaveRequest request) {
+    public BatchTicketSaveResult saveBatch(BatchTicketSaveRequest request, Map<Integer, MultipartFile> proofFiles) {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new InvalidOperationException("Aucun élément à enregistrer.");
         }
@@ -278,6 +278,9 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
                 String receiptNum = (item.getReceiptNumber() != null && !item.getReceiptNumber().isBlank() && !"null".equalsIgnoreCase(item.getReceiptNumber()))
                         ? item.getReceiptNumber().trim() : null;
 
+                // Récupère le fichier justificatif pour ce ticket (indexé par ticketIndex)
+                MultipartFile proofFile = (proofFiles != null) ? proofFiles.get(item.getTicketIndex()) : null;
+
                 if ("PEAGE".equalsIgnoreCase(item.getTicketType())) {
                     BigDecimal ttc = item.getAmountTTC() != null && item.getAmountTTC().compareTo(BigDecimal.ZERO) > 0 
                             ? item.getAmountTTC() : BigDecimal.valueOf(0.01);
@@ -297,7 +300,7 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
                             item.getSocieteAutoroute(),
                             item.getNotes()
                     );
-                    PeageResponse response = peageService.create(pr, null);
+                    PeageResponse response = peageService.create(pr, proofFile);
                     results.add(BatchTicketSaveResult.BatchTicketSaveItemResult.builder()
                             .ticketIndex(item.getTicketIndex())
                             .ticketType("PEAGE")
@@ -340,7 +343,7 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
                             false, null, null
                     );
 
-                    PleinCarburantResponse response = pleinCarburantService.create(pcr, null);
+                    PleinCarburantResponse response = pleinCarburantService.create(pcr, proofFile);
                     results.add(BatchTicketSaveResult.BatchTicketSaveItemResult.builder()
                             .ticketIndex(item.getTicketIndex())
                             .ticketType("CARBURANT")

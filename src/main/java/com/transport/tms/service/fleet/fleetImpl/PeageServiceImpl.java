@@ -125,10 +125,11 @@ public class PeageServiceImpl implements PeageService {
             peage.setMission(mission);
         }
 
-        if (proof != null && !proof.isEmpty()) {
-            String filename = fileStorageService.store(proof, "");
-            peage.setProofFilePath(filename);
+        if (proof == null || proof.isEmpty()) {
+            throw new com.transport.tms.exception.InvalidOperationException("Le justificatif (image ou PDF) est obligatoire pour enregistrer un péage.");
         }
+        String filename = fileStorageService.store(proof, "");
+        peage.setProofFilePath(filename);
 
         peage = peageRepository.save(peage);
         return peageMapper.toResponse(peage);

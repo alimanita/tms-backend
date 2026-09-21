@@ -1,12 +1,12 @@
 package com.transport.tms.controller.api.fleet;
 
-import com.transport.tms.dto.fleet.request.BatchTicketSaveRequest;
 import com.transport.tms.dto.fleet.response.BatchTicketItemResult;
 import com.transport.tms.dto.fleet.response.BatchTicketSaveResult;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.util.List;
 
@@ -17,7 +17,9 @@ public interface BatchTicketApi {
     ResponseEntity<List<BatchTicketItemResult>> analyzeBatch(
             @RequestParam("files") List<MultipartFile> files);
 
-    @PostMapping("/save")
+    @PostMapping(value = "/save", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<BatchTicketSaveResult> saveBatch(
-            @RequestBody BatchTicketSaveRequest request);
+            @RequestPart("data") String dataJson,
+            MultipartHttpServletRequest request);
 }
+
