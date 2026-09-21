@@ -22,8 +22,47 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
 
     boolean existsByReference(String reference);
 
-    boolean existsByReceiptNumber(String receiptNumber);
-    boolean existsByReceiptNumberAndIdNot(String receiptNumber, Long id);
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.receiptNumber IS NOT NULL
+        AND (
+            p.receiptNumber = :receiptNumber
+            OR REPLACE(REPLACE(REPLACE(UPPER(p.receiptNumber), ' ', ''), '-', ''), '_', '') = :normalizedReceipt
+        )
+    """)
+    boolean existsByReceiptNumber(
+            @Param("receiptNumber") String receiptNumber,
+            @Param("normalizedReceipt") String normalizedReceipt);
+
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.id <> :id
+        AND p.receiptNumber IS NOT NULL
+        AND (
+            p.receiptNumber = :receiptNumber
+            OR REPLACE(REPLACE(REPLACE(UPPER(p.receiptNumber), ' ', ''), '-', ''), '_', '') = :normalizedReceipt
+        )
+    """)
+    boolean existsByReceiptNumberAndIdNot(
+            @Param("receiptNumber") String receiptNumber,
+            @Param("normalizedReceipt") String normalizedReceipt,
+            @Param("id") Long id);
+
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.vehicule.id = :vehiculeId
+        AND (
+            (:amount > 0 AND (p.amountTTC = :amount OR (p.quantityLiters * p.pricePerLiter) = :amount))
+            OR (:quantity > 0 AND p.quantityLiters = :quantity)
+        )
+        AND p.fillingDate BETWEEN :startDate AND :endDate
+    """)
+    boolean existsDuplicate(
+            @Param("vehiculeId") Long vehiculeId,
+            @Param("amount") BigDecimal amount,
+            @Param("quantity") BigDecimal quantity,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 
     @Query("""
         SELECT p FROM PleinCarburant p

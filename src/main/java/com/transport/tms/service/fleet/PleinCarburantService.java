@@ -16,6 +16,7 @@ public interface PleinCarburantService {
     PleinCarburantResponse findById(Long id);
     Page<PleinCarburantResponse> findAll(Pageable pageable);
     Page<PleinCarburantResponse> findAll(Long vehiculeId, Long chauffeurId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
+    com.transport.tms.dto.fleet.response.PleinCarburantSummaryResponse getSummary(Long vehiculeId, Long chauffeurId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
     List<PleinCarburantResponse> findByVehicule(Long vehiculeId);
     List<PleinCarburantResponse> findByChauffeur(Long chauffeurId);
     void delete(Long id);

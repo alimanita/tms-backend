@@ -41,6 +41,20 @@ public class PleinCarburantController implements PleinCarburantApi {
     }
 
     @Override
+    public ResponseEntity<com.transport.tms.dto.fleet.response.PleinCarburantSummaryResponse> getSummary(Long vehiculeId, Long chauffeurId, String startDate, String endDate) {
+        java.time.LocalDateTime startLdt = null;
+        java.time.LocalDateTime endLdt = null;
+        if (startDate != null && !startDate.isBlank()) {
+            try { startLdt = java.time.LocalDate.parse(startDate).atStartOfDay(); } catch (Exception ignored) {}
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            try { endLdt = java.time.LocalDate.parse(endDate).atTime(23, 59, 59); } catch (Exception ignored) {}
+        }
+        return ResponseEntity.ok(pleinCarburantService.getSummary(vehiculeId, chauffeurId, startLdt, endLdt));
+    }
+
+
+    @Override
     public ResponseEntity<PleinCarburantResponse> findById(Long id) {
         return ResponseEntity.ok(pleinCarburantService.findById(id));
     }

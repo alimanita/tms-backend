@@ -48,6 +48,9 @@ public class PeageServiceImpl implements PeageService {
     private final ReceiptOcrService receiptOcrService;
     private final UtilisateurRepository utilisateurRepository;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
     private Chauffeur resolveChauffeurFromConnectedUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) return null;
@@ -94,6 +97,51 @@ public class PeageServiceImpl implements PeageService {
 
     @Override
     @Transactional(readOnly = true)
+    public com.transport.tms.dto.fleet.response.PeageSummaryResponse getSummary(Long vehiculeId, Long chauffeurId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate) {
+        Chauffeur chauffeurConnecte = resolveChauffeurFromConnectedUser();
+        Long finalChauffeurId = (chauffeurConnecte != null) ? chauffeurConnecte.getId() : chauffeurId;
+
+        jakarta.persistence.criteria.CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        jakarta.persistence.criteria.CriteriaQuery<jakarta.persistence.Tuple> cq = cb.createTupleQuery();
+        jakarta.persistence.criteria.Root<Peage> root = cq.from(Peage.class);
+
+        java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+        if (vehiculeId != null) {
+            predicates.add(cb.equal(root.get("vehicule").get("id"), vehiculeId));
+        }
+        if (finalChauffeurId != null) {
+            predicates.add(cb.equal(root.get("chauffeur").get("id"), finalChauffeurId));
+        }
+        if (startDate != null) {
+            predicates.add(cb.greaterThanOrEqualTo(root.get("datePassage"), startDate));
+        }
+        if (endDate != null) {
+            predicates.add(cb.lessThanOrEqualTo(root.get("datePassage"), endDate));
+        }
+
+        cq.multiselect(
+            cb.coalesce(cb.sum(root.get("amountTTC")), java.math.BigDecimal.ZERO).alias("totalAmountTTC"),
+            cb.coalesce(cb.sum(root.get("amountHT")), java.math.BigDecimal.ZERO).alias("totalAmountHT"),
+            cb.count(root).alias("totalCount")
+        );
+        if (!predicates.isEmpty()) {
+            cq.where(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        }
+
+        jakarta.persistence.Tuple tuple = entityManager.createQuery(cq).getSingleResult();
+        java.math.BigDecimal totalAmountTTC = tuple.get("totalAmountTTC", java.math.BigDecimal.class);
+        java.math.BigDecimal totalAmountHT = tuple.get("totalAmountHT", java.math.BigDecimal.class);
+        Long count = tuple.get("totalCount", Long.class);
+
+        return com.transport.tms.dto.fleet.response.PeageSummaryResponse.builder()
+                .totalAmountTTC(totalAmountTTC != null ? totalAmountTTC : java.math.BigDecimal.ZERO)
+                .totalAmountHT(totalAmountHT != null ? totalAmountHT : java.math.BigDecimal.ZERO)
+                .totalCount(count != null ? count : 0L)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PeageResponse findById(Long id) {
         return peageMapper.toResponse(findEntityById(id));
     }
@@ -101,9 +149,22 @@ public class PeageServiceImpl implements PeageService {
     @Override
     @Transactional
     public PeageResponse create(PeageRequest request, MultipartFile proof) {
-        if (request.receiptNumber() != null && !request.receiptNumber().isBlank() &&
-            peageRepository.existsByReceiptNumber(request.receiptNumber())) {
-            throw new com.transport.tms.exception.InvalidOperationException("Un péage avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+        // 1. Contrôle d'unicité prioritaire sur la référence / numéro du ticket (avec normalisation)
+        if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
+            String cleanReceipt = request.receiptNumber().trim();
+            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_]+", "").toUpperCase();
+            if (peageRepository.existsByReceiptNumber(cleanReceipt, normalizedReceipt)) {
+                throw new com.transport.tms.exception.InvalidOperationException("Un péage avec ce numéro de justificatif (" + cleanReceipt + ") existe déjà.");
+            }
+        }
+
+        // 2. Contrôle de doublon pour le même véhicule au même moment (même montant)
+        if (request.vehiculeId() != null && request.amountTTC() != null && request.datePassage() != null) {
+            java.time.LocalDateTime startWindow = request.datePassage().minusMinutes(5);
+            java.time.LocalDateTime endWindow = request.datePassage().plusMinutes(5);
+            if (peageRepository.existsDuplicate(request.vehiculeId(), request.amountTTC(), startWindow, endWindow)) {
+                throw new com.transport.tms.exception.InvalidOperationException("Un péage identique (même véhicule, date et montant) a déjà été enregistré.");
+            }
         }
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
@@ -138,9 +199,12 @@ public class PeageServiceImpl implements PeageService {
     @Override
     @Transactional
     public PeageResponse update(Long id, PeageRequest request, MultipartFile proof) {
-        if (request.receiptNumber() != null && !request.receiptNumber().isBlank() &&
-            peageRepository.existsByReceiptNumberAndIdNot(request.receiptNumber(), id)) {
-            throw new com.transport.tms.exception.InvalidOperationException("Un péage avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+        if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
+            String cleanReceipt = request.receiptNumber().trim();
+            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_]+", "").toUpperCase();
+            if (peageRepository.existsByReceiptNumberAndIdNot(cleanReceipt, normalizedReceipt, id)) {
+                throw new com.transport.tms.exception.InvalidOperationException("Un péage avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+            }
         }
 
         Peage peage = findEntityById(id);

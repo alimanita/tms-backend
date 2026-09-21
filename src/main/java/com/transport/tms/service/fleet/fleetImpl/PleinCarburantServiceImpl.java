@@ -48,12 +48,30 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
     private final UtilisateurRepository utilisateurRepository;
     private final com.transport.tms.service.fleet.ReceiptOcrService receiptOcrService;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @Override
     public PleinCarburantResponse create(PleinCarburantRequest request, MultipartFile proof) {
-        if (request.receiptNumber() != null && !request.receiptNumber().isBlank() &&
-            pleinRepository.existsByReceiptNumber(request.receiptNumber())) {
-            throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+        // 1. Contrôle d'unicité prioritaire sur la référence / numéro du ticket (avec normalisation)
+        if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
+            String cleanReceipt = request.receiptNumber().trim();
+            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_]+", "").toUpperCase();
+            if (pleinRepository.existsByReceiptNumber(cleanReceipt, normalizedReceipt)) {
+                throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + cleanReceipt + ") existe déjà.");
+            }
+        }
+
+        // 2. Contrôle de doublon pour le même véhicule au même moment (même montant ou quantité)
+        if (request.vehiculeId() != null && request.fillingDate() != null) {
+            java.time.LocalDateTime startWindow = request.fillingDate().minusMinutes(5);
+            java.time.LocalDateTime endWindow = request.fillingDate().plusMinutes(5);
+            BigDecimal amount = request.amountTTC() != null ? request.amountTTC() 
+                    : (request.pricePerLiter() != null && request.quantityLiters() != null ? request.quantityLiters().multiply(request.pricePerLiter()) : BigDecimal.ZERO);
+            BigDecimal qty = request.quantityLiters() != null ? request.quantityLiters() : BigDecimal.ZERO;
+            if (pleinRepository.existsDuplicate(request.vehiculeId(), amount, qty, startWindow, endWindow)) {
+                throw new InvalidOperationException("Un plein de carburant identique (même véhicule, date et montant/quantité) a déjà été enregistré.");
+            }
         }
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
@@ -109,9 +127,12 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
 
     @Override
     public PleinCarburantResponse update(Long id, PleinCarburantRequest request, MultipartFile proof) {
-        if (request.receiptNumber() != null && !request.receiptNumber().isBlank() &&
-            pleinRepository.existsByReceiptNumberAndIdNot(request.receiptNumber(), id)) {
-            throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+        if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
+            String cleanReceipt = request.receiptNumber().trim();
+            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_]+", "").toUpperCase();
+            if (pleinRepository.existsByReceiptNumberAndIdNot(cleanReceipt, normalizedReceipt, id)) {
+                throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+            }
         }
 
         PleinCarburant plein = findEntityById(id);
@@ -245,6 +266,51 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
         };
 
         return pleinRepository.findAll(spec, pageable).map(mapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.transport.tms.dto.fleet.response.PleinCarburantSummaryResponse getSummary(Long vehiculeId, Long chauffeurId, LocalDateTime startDate, LocalDateTime endDate) {
+        Chauffeur chauffeurConnecte = resolveChauffeurFromConnectedUser();
+        Long finalChauffeurId = (chauffeurConnecte != null) ? chauffeurConnecte.getId() : chauffeurId;
+
+        jakarta.persistence.criteria.CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        jakarta.persistence.criteria.CriteriaQuery<jakarta.persistence.Tuple> cq = cb.createTupleQuery();
+        jakarta.persistence.criteria.Root<PleinCarburant> root = cq.from(PleinCarburant.class);
+
+        List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+        if (vehiculeId != null) {
+            predicates.add(cb.equal(root.get("vehicule").get("id"), vehiculeId));
+        }
+        if (finalChauffeurId != null) {
+            predicates.add(cb.equal(root.get("chauffeur").get("id"), finalChauffeurId));
+        }
+        if (startDate != null) {
+            predicates.add(cb.greaterThanOrEqualTo(root.get("fillingDate"), startDate));
+        }
+        if (endDate != null) {
+            predicates.add(cb.lessThanOrEqualTo(root.get("fillingDate"), endDate));
+        }
+
+        cq.multiselect(
+            cb.coalesce(cb.sum(cb.coalesce(root.get("amountTTC"), cb.prod(root.get("quantityLiters"), root.get("pricePerLiter")))), BigDecimal.ZERO).alias("totalAmount"),
+            cb.coalesce(cb.sum(root.get("quantityLiters")), BigDecimal.ZERO).alias("totalQuantity"),
+            cb.count(root).alias("totalCount")
+        );
+        if (!predicates.isEmpty()) {
+            cq.where(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        }
+
+        jakarta.persistence.Tuple tuple = entityManager.createQuery(cq).getSingleResult();
+        BigDecimal totalAmount = tuple.get("totalAmount", BigDecimal.class);
+        BigDecimal totalQuantity = tuple.get("totalQuantity", BigDecimal.class);
+        Long count = tuple.get("totalCount", Long.class);
+
+        return com.transport.tms.dto.fleet.response.PleinCarburantSummaryResponse.builder()
+                .totalAmount(totalAmount != null ? totalAmount : BigDecimal.ZERO)
+                .totalQuantity(totalQuantity != null ? totalQuantity : BigDecimal.ZERO)
+                .totalCount(count != null ? count : 0L)
+                .build();
     }
 
     @Override

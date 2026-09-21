@@ -25,6 +25,13 @@ public interface PeageApi {
             @RequestParam(value = "endDate", required = false) String endDate,
             Pageable pageable);
 
+    @GetMapping("/summary")
+    ResponseEntity<com.transport.tms.dto.fleet.response.PeageSummaryResponse> getSummary(
+            @RequestParam(value = "vehiculeId", required = false) Long vehiculeId,
+            @RequestParam(value = "chauffeurId", required = false) Long chauffeurId,
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate);
+
     @GetMapping("/{id}")
     ResponseEntity<PeageResponse> findById(@PathVariable Long id);
 

@@ -17,8 +17,43 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
     List<Peage> findByMissionId(Long missionId);
     Page<Peage> findAll(Pageable pageable);
 
-    boolean existsByReceiptNumber(String receiptNumber);
-    boolean existsByReceiptNumberAndIdNot(String receiptNumber, Long id);
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(p) > 0 FROM Peage p
+        WHERE p.receiptNumber IS NOT NULL
+        AND (
+            p.receiptNumber = :receiptNumber
+            OR REPLACE(REPLACE(REPLACE(UPPER(p.receiptNumber), ' ', ''), '-', ''), '_', '') = :normalizedReceipt
+        )
+    """)
+    boolean existsByReceiptNumber(
+            @org.springframework.data.repository.query.Param("receiptNumber") String receiptNumber,
+            @org.springframework.data.repository.query.Param("normalizedReceipt") String normalizedReceipt);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(p) > 0 FROM Peage p
+        WHERE p.id <> :id
+        AND p.receiptNumber IS NOT NULL
+        AND (
+            p.receiptNumber = :receiptNumber
+            OR REPLACE(REPLACE(REPLACE(UPPER(p.receiptNumber), ' ', ''), '-', ''), '_', '') = :normalizedReceipt
+        )
+    """)
+    boolean existsByReceiptNumberAndIdNot(
+            @org.springframework.data.repository.query.Param("receiptNumber") String receiptNumber,
+            @org.springframework.data.repository.query.Param("normalizedReceipt") String normalizedReceipt,
+            @org.springframework.data.repository.query.Param("id") Long id);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(p) > 0 FROM Peage p
+        WHERE p.vehicule.id = :vehiculeId
+        AND p.amountTTC = :amountTTC
+        AND p.datePassage BETWEEN :startDate AND :endDate
+    """)
+    boolean existsDuplicate(
+            @org.springframework.data.repository.query.Param("vehiculeId") Long vehiculeId,
+            @org.springframework.data.repository.query.Param("amountTTC") java.math.BigDecimal amountTTC,
+            @org.springframework.data.repository.query.Param("startDate") java.time.LocalDateTime startDate,
+            @org.springframework.data.repository.query.Param("endDate") java.time.LocalDateTime endDate);
 
     @org.springframework.data.jpa.repository.Query("""
         SELECT p FROM Peage p

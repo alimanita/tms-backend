@@ -42,6 +42,20 @@ public class PeageController implements PeageApi {
     }
 
     @Override
+    public ResponseEntity<com.transport.tms.dto.fleet.response.PeageSummaryResponse> getSummary(Long vehiculeId, Long chauffeurId, String startDate, String endDate) {
+        java.time.LocalDateTime startLdt = null;
+        java.time.LocalDateTime endLdt = null;
+        if (startDate != null && !startDate.isBlank()) {
+            try { startLdt = java.time.LocalDate.parse(startDate).atStartOfDay(); } catch (Exception ignored) {}
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            try { endLdt = java.time.LocalDate.parse(endDate).atTime(23, 59, 59); } catch (Exception ignored) {}
+        }
+        return ResponseEntity.ok(peageService.getSummary(vehiculeId, chauffeurId, startLdt, endLdt));
+    }
+
+
+    @Override
     public ResponseEntity<PeageResponse> findById(Long id) {
         return ResponseEntity.ok(peageService.findById(id));
     }

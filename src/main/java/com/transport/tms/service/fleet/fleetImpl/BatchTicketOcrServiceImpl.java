@@ -112,7 +112,7 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
         fileContent.put("source", source);
 
         String prompt = "Analyse ce document (ticket de péage, de carburant ou autre) et renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés :\n" +
-                "- 'documentType' : 'PEAGE' si c'est un ticket de péage/autoroute (mentions: gare, péage, autoroute, ASF, VINCI, SANEF, APRR), 'CARBURANT' si c'est un ticket de carburant/essence (mentions: litres, liters, diesel, essence, station, gazole), 'UNKNOWN' sinon.\n" +
+                "- 'documentType' : 'PEAGE' si c'est un ticket de péage/autoroute (mentions: gare, péage, autoroute, ASF, VINCI, SANEF, APRR, ADM, etc.), 'CARBURANT' si c'est un ticket de carburant/essence (mentions: litres, liters, diesel, essence, station, gazole, etc.), 'UNKNOWN' sinon.\n" +
                 "- 'typeConfidence' : 'HIGH' si tu es certain du type (indices clairs), 'LOW' si tu as un doute.\n" +
                 "- 'operationDate' : la date de la transaction/opération au format YYYY-MM-DD. C'est la date à laquelle le paiement ou le passage a eu lieu. Ignore les dates d'impression de reçu, de validité de carte ou autres dates secondaires. Si plusieurs dates sont présentes, détermine quelle date correspond réellement à la date de l'opération. Si aucune date trouvée, mets null.\n" +
                 "- 'operationTime' : l'heure de la transaction au format HH:mm. Si absente, mets '00:00'.\n" +
@@ -124,8 +124,8 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
                 "- 'tvaAmount' : montant TVA (nombre), null si non trouvé.\n" +
                 "- 'gareEntree' : gare d'entrée (chaîne), null si non trouvé (uniquement pour PEAGE).\n" +
                 "- 'gareSortie' : gare de sortie (chaîne), null si non trouvé (uniquement pour PEAGE).\n" +
-                "- 'receiptNumber' : numéro de reçu/ticket/transaction (chaîne), null si non trouvé.\n" +
-                "- 'operatorName' : société opérateur (ex: ASF, VINCI, Total, Shell), null si non trouvé.\n" +
+                "- 'receiptNumber' : numéro de référence unique du ticket / reçu / transaction (chaîne). C'est la référence unique obligatoire pour distinguer chaque ticket (ex: N° ticket, N° transaction, Réf, N° passage, code transaction, N° facturette, N° autorisation, N° séquence, etc.). Cherche minutieusement ce numéro/code unique sur le ticket.\n" +
+                "- 'operatorName' : société opérateur (ex: ASF, VINCI, Total, Shell, ADM, Afriquia, etc.), null si non trouvé.\n" +
                 "- 'quantityLiters' : quantité de carburant en litres (nombre), null si non trouvé (uniquement pour CARBURANT).\n" +
                 "- 'pricePerLiter' : prix par litre (nombre), null si non trouvé (uniquement pour CARBURANT).\n" +
                 "- 'fuelType' : type de carburant ('DIESEL', 'ESSENCE', 'GPL', 'ELECTRIQUE'), null si non trouvé (uniquement pour CARBURANT).";

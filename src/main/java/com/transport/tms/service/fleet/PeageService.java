@@ -2,6 +2,7 @@ package com.transport.tms.service.fleet;
 
 import com.transport.tms.dto.fleet.request.PeageRequest;
 import com.transport.tms.dto.fleet.response.PeageResponse;
+import com.transport.tms.dto.fleet.response.PeageSummaryResponse;
 import com.transport.tms.dto.fleet.response.OcrTollResult;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -13,6 +14,7 @@ import java.util.List;
 public interface PeageService {
     Page<PeageResponse> findAll(Pageable pageable);
     Page<PeageResponse> findAll(Long vehiculeId, Long chauffeurId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate, Pageable pageable);
+    PeageSummaryResponse getSummary(Long vehiculeId, Long chauffeurId, java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
     PeageResponse findById(Long id);
     PeageResponse create(PeageRequest request, MultipartFile proof);
     PeageResponse update(Long id, PeageRequest request, MultipartFile proof);
@@ -23,3 +25,4 @@ public interface PeageService {
     List<PeageResponse> findByChauffeur(Long chauffeurId);
     List<PeageResponse> findByMission(Long missionId);
 }
+
