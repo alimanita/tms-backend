@@ -31,6 +31,7 @@ public class RapportsApiController {
     private final com.transport.tms.repository.fleet.OrdreTravailRepository ordreTravailRepository;
     private final com.transport.tms.repository.fleet.ChauffeurRepository chauffeurRepository;
     private final com.transport.tms.repository.fleet.PeageRepository peageRepository;
+    private final com.transport.tms.repository.fleet.DepenseDiverseRepository depenseDiverseRepository;
 
     // ── Entretiens / Maintenance ──────────────────────────────────────────────
 
@@ -439,6 +440,8 @@ public class RapportsApiController {
                 debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
         List<com.transport.tms.domain.entity.fleet.Peage> allStandaloneTolls = peageRepository.findStandaloneForBilanExploitation(
                 debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
+        List<com.transport.tms.domain.entity.fleet.DepenseDiverse> allStandaloneDiverses = depenseDiverseRepository.findForBilanExploitation(
+                debut, fin, safeVehiculeIds, filterVehicule, safeChauffeurIds, filterChauffeur);
 
         java.math.BigDecimal totalRevenu = java.math.BigDecimal.ZERO;
         java.math.BigDecimal totalCarburant = java.math.BigDecimal.ZERO;
@@ -539,6 +542,23 @@ public class RapportsApiController {
             ligne.setMontant(montant);
 
             totalPeage = totalPeage.add(montant);
+            dto.getDepensesLibres().add(ligne);
+        }
+
+        // 4. Dépenses diverses hors mission
+        for (var div : allStandaloneDiverses) {
+            java.math.BigDecimal montant = div.getAmountTTC() != null ? div.getAmountTTC() : java.math.BigDecimal.ZERO;
+
+            BilanExploitationDto.LigneDepenseLibre ligne = new BilanExploitationDto.LigneDepenseLibre();
+            ligne.setId(div.getId());
+            ligne.setType("DIVERS (" + (div.getCategorie() != null ? div.getCategorie().name() : "AUTRE") + ")");
+            ligne.setReference(div.getReference() != null ? div.getReference() : "N/A");
+            ligne.setDate(div.getDateDepense().toLocalDate().toString());
+            if (div.getChauffeur() != null) ligne.setChauffeurNom(div.getChauffeur().getPrenom() + " " + div.getChauffeur().getNom());
+            if (div.getVehicule() != null) ligne.setVehiculeRef(div.getVehicule().getImmatriculation());
+            ligne.setMontant(montant);
+
+            totalAutres = totalAutres.add(montant);
             dto.getDepensesLibres().add(ligne);
         }
 

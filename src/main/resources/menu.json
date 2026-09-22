@@ -70,6 +70,15 @@
           }
         },
         {
+          "route": "/fleet/depenses-diverses",
+          "name": "Dépenses Diverses",
+          "type": "link",
+          "icon": "receipt",
+          "permissions": {
+            "except": ["MECANICIEN"]
+          }
+        },
+        {
           "route": "/fleet/batch-tickets",
           "name": "Traitement masse IA",
           "type": "link",

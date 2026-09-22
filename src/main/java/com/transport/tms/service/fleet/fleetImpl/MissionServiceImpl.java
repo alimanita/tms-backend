@@ -59,6 +59,7 @@ public class MissionServiceImpl implements MissionService {
     private final SocietePartenaireRepository partenaireRepository;
     private final FileStorageService fileStorageService;
     private final MissionMapper mapper;
+    private final com.transport.tms.repository.fleet.DepenseDiverseRepository depenseDiverseRepository;
 
     private static final int MAX_TENTATIVES_REFERENCE = 5;
 
@@ -587,6 +588,32 @@ public class MissionServiceImpl implements MissionService {
             peage.setNotes("Péage lié à la mission " + mission.getReference() + (depense.getDescription() != null ? " - " + depense.getDescription() : ""));
             peage.setProofFilePath(filePath);
             peageRepository.save(peage);
+        } else {
+            // MEAL, LODGING, REPAIR, OTHER → créer une DepenseDiverse automatiquement
+            // Uniquement si la mission a un chauffeur (champ obligatoire dans DepenseDiverse)
+            com.transport.tms.domain.entity.fleet.Chauffeur chauffeurMission =
+                    mission.getChauffeurSlots().isEmpty() ? null : mission.getChauffeurSlots().get(0).getChauffeur();
+            if (chauffeurMission != null) {
+                com.transport.tms.domain.entity.fleet.DepenseDiverse diverse = new com.transport.tms.domain.entity.fleet.DepenseDiverse();
+                diverse.setReference("DIV-" + mission.getReference() + "-" + System.currentTimeMillis());
+                diverse.setAmountTTC(depense.getMontant());
+                diverse.setDateDepense(depense.getExpenseDate() != null ? depense.getExpenseDate() : java.time.LocalDateTime.now());
+                diverse.setNotes("Dépense liée à la mission " + mission.getReference() + (depense.getDescription() != null ? " - " + depense.getDescription() : ""));
+                diverse.setProofFilePath(filePath);
+                diverse.setChauffeur(chauffeurMission);
+                diverse.setVehicule(mission.getVehicule());
+
+                // Mapping TypeDepense → CategorieDepense
+                com.transport.tms.domain.enums.CategorieDepense categorie;
+                switch (depense.getExpenseType()) {
+                    case MEAL     -> categorie = com.transport.tms.domain.enums.CategorieDepense.REPAS;
+                    case LODGING  -> categorie = com.transport.tms.domain.enums.CategorieDepense.HEBERGEMENT;
+                    case REPAIR   -> categorie = com.transport.tms.domain.enums.CategorieDepense.REPARATION_URGENTE;
+                    default       -> categorie = com.transport.tms.domain.enums.CategorieDepense.AUTRE;
+                }
+                diverse.setCategorie(categorie);
+                depenseDiverseRepository.save(diverse);
+            }
         }
 
         mission.getDepenses().add(saved);
