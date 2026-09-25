@@ -97,6 +97,15 @@
           }
         },
         {
+          "route": "/fleet/planner",
+          "name": "Planificateur (TMS)",
+          "type": "link",
+          "icon": "route",
+          "permissions": {
+            "except": ["MECANICIEN", "COMPTABLE", "CHAUFFEUR"]
+          }
+        },
+        {
           "route": "/fleet/partenaires",
           "name": "Partenaires",
           "type": "link",
