@@ -49,22 +49,7 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
             @Param("id") Long id);
 
 
-    // ── Filet de sécurité : même véhicule + même montant/quantité + même date ±5min ─
-    @Query("""
-        SELECT COUNT(p) > 0 FROM PleinCarburant p
-        WHERE p.vehicule.id = :vehiculeId
-        AND (
-            (:amount > 0 AND (p.amountTTC = :amount OR (p.quantityLiters * p.pricePerLiter) = :amount))
-            OR (:quantity > 0 AND p.quantityLiters = :quantity)
-        )
-        AND p.fillingDate BETWEEN :startDate AND :endDate
-    """)
-    boolean existsDuplicate(
-            @Param("vehiculeId") Long vehiculeId,
-            @Param("amount") java.math.BigDecimal amount,
-            @Param("quantity") java.math.BigDecimal quantity,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate);
+
 
 
     @Query("""

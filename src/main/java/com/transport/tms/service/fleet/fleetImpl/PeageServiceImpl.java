@@ -158,17 +158,7 @@ public class PeageServiceImpl implements PeageService {
             }
         }
 
-        // 2. Filet de sécurité : même véhicule + même montant + même date ±5min + même trajet
-        //    (bloque les doublons OCR même si le numéro de reçu est mal lu)
-        if (request.vehiculeId() != null && request.amountTTC() != null && request.datePassage() != null) {
-            java.time.LocalDateTime startWindow = request.datePassage().minusMinutes(5);
-            java.time.LocalDateTime endWindow = request.datePassage().plusMinutes(5);
-            if (peageRepository.existsDuplicate(request.vehiculeId(), request.amountTTC(), startWindow, endWindow,
-                    request.gareEntree(), request.gareSortie())) {
-                throw new com.transport.tms.exception.InvalidOperationException(
-                        "Un péage identique (même véhicule, trajet, date et montant) a déjà été enregistré.");
-            }
-        }
+
 
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
