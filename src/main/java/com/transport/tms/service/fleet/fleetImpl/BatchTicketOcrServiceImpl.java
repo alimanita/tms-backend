@@ -124,7 +124,7 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
                 "- 'tvaAmount' : montant TVA (nombre), null si non trouvé.\n" +
                 "- 'gareEntree' : gare d'entrée (chaîne), null si non trouvé (uniquement pour PEAGE).\n" +
                 "- 'gareSortie' : gare de sortie (chaîne), null si non trouvé (uniquement pour PEAGE).\n" +
-                "- 'receiptNumber' : numéro de référence unique du ticket / reçu / transaction (chaîne). C'est la référence unique obligatoire pour distinguer chaque ticket (ex: N° ticket, N° transaction, Réf, N° passage, code transaction, N° facturette, N° autorisation, N° séquence, etc.). Cherche minutieusement ce numéro/code unique sur le ticket.\n" +
+                "- 'receiptNumber' : le numéro de référence exact du ticket (chaîne). Lis chaque caractère très attentivement un par un sans ajouter de chiffres en double (ex: ne pas répéter les derniers chiffres comme 27 en 277) et ne confonds pas 0 avec O ou 2 avec Z. Pour un péage ASF, il ressemble typiquement à 'R2530823031800400027'.\n" +
                 "- 'operatorName' : société opérateur (ex: ASF, VINCI, Total, Shell, ADM, Afriquia, etc.), null si non trouvé.\n" +
                 "- 'quantityLiters' : quantité de carburant en litres (nombre), null si non trouvé (uniquement pour CARBURANT).\n" +
                 "- 'pricePerLiter' : prix par litre (nombre), null si non trouvé (uniquement pour CARBURANT).\n" +

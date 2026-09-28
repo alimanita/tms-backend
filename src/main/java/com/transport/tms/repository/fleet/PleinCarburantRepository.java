@@ -48,6 +48,8 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
             @Param("normalizedReceipt") String normalizedReceipt,
             @Param("id") Long id);
 
+
+    // ── Filet de sécurité : même véhicule + même montant/quantité + même date ±5min ─
     @Query("""
         SELECT COUNT(p) > 0 FROM PleinCarburant p
         WHERE p.vehicule.id = :vehiculeId
@@ -59,10 +61,11 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
     """)
     boolean existsDuplicate(
             @Param("vehiculeId") Long vehiculeId,
-            @Param("amount") BigDecimal amount,
-            @Param("quantity") BigDecimal quantity,
+            @Param("amount") java.math.BigDecimal amount,
+            @Param("quantity") java.math.BigDecimal quantity,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
+
 
     @Query("""
         SELECT p FROM PleinCarburant p

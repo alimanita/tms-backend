@@ -199,7 +199,21 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
             Map<String, Object> textContent = new HashMap<>();
             textContent.put("type", "text");
-            textContent.put("text", "Extrais les données de ce ticket de péage. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés : 'amountTTC' (nombre), 'amountHT' (nombre, 0 si non trouvé), 'tvaAmount' (nombre, 0 si non trouvé), 'tvaRate' (nombre, ex: 20.0, 0 si non trouvé), 'receiptDate' (chaîne YYYY-MM-DD), 'receiptTime' (chaîne HH:mm), 'entree' (gare d'entrée, chaîne), 'sortie' (gare de sortie, chaîne), 'receiptNumber' (numéro de reçu/ticket, chaîne), 'operator' (société ex: ASF, VINCI, SANEF, APRR, chaîne).");
+            textContent.put("text",
+                "Extrais les données de ce ticket de péage autoroutier. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés : " +
+                "'amountTTC' (nombre), 'amountHT' (nombre, 0 si non trouvé), 'tvaAmount' (nombre, 0 si non trouvé), 'tvaRate' (nombre, ex: 20.0, 0 si non trouvé), " +
+                "'receiptDate' (chaîne YYYY-MM-DD), 'receiptTime' (chaîne HH:mm), " +
+                "'entree' (gare d'entrée, chaîne), 'sortie' (gare de sortie, chaîne), " +
+                "'operator' (société ex: ASF, VINCI, SANEF, APRR, chaîne), " +
+                "'receiptNumber' (le numéro de reçu/ticket tel qu'imprimé sur le ticket, RÈGLES STRICTES : " +
+                "1) Lis chaque caractère UN PAR UN de gauche à droite. " +
+                "2) Ce numéro commence toujours par une lettre (ex: 'R', 'N') suivie uniquement de CHIFFRES (0-9). " +
+                "3) NE confonds JAMAIS : la lettre O (ô) avec le chiffre 0 (zéro) — sur ces tickets c'est toujours un CHIFFRE 0. " +
+                "4) NE confonds JAMAIS : la lettre Z avec le chiffre 2 — sur ces tickets c'est toujours un CHIFFRE. " +
+                "5) Recopie EXACTEMENT le nombre de caractères visible, ni plus ni moins. " +
+                "6) Exemple correct : 'R2530823031800400027' et NON 'R25308230318004000277' ou 'R25308230318004000Z7'. " +
+                "7) Si le numéro n'est pas lisible, renvoie null.)."
+            );
 
             Map<String, Object> message = new HashMap<>();
             message.put("role", "user");

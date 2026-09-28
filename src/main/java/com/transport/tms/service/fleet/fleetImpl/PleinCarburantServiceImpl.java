@@ -62,15 +62,18 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
             }
         }
 
-        // 2. Contrôle de doublon pour le même véhicule au même moment (même montant ou quantité)
+        // 2. Filet de sécurité : même véhicule + même montant/quantité + même date ±5min
+        //    (bloque les doublons OCR même si le numéro de reçu est mal lu)
         if (request.vehiculeId() != null && request.fillingDate() != null) {
             java.time.LocalDateTime startWindow = request.fillingDate().minusMinutes(5);
             java.time.LocalDateTime endWindow = request.fillingDate().plusMinutes(5);
-            BigDecimal amount = request.amountTTC() != null ? request.amountTTC() 
-                    : (request.pricePerLiter() != null && request.quantityLiters() != null ? request.quantityLiters().multiply(request.pricePerLiter()) : BigDecimal.ZERO);
+            BigDecimal amount = request.amountTTC() != null ? request.amountTTC()
+                    : (request.pricePerLiter() != null && request.quantityLiters() != null
+                            ? request.quantityLiters().multiply(request.pricePerLiter()) : BigDecimal.ZERO);
             BigDecimal qty = request.quantityLiters() != null ? request.quantityLiters() : BigDecimal.ZERO;
             if (pleinRepository.existsDuplicate(request.vehiculeId(), amount, qty, startWindow, endWindow)) {
-                throw new InvalidOperationException("Un plein de carburant identique (même véhicule, date et montant/quantité) a déjà été enregistré.");
+                throw new InvalidOperationException(
+                        "Un plein de carburant identique (même véhicule, date et montant/quantité) a déjà été enregistré.");
             }
         }
 

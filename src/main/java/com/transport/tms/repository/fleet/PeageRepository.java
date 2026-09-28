@@ -17,6 +17,7 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
     List<Peage> findByMissionId(Long missionId);
     Page<Peage> findAll(Pageable pageable);
 
+    // ── 1. Unicité par numéro de reçu (contrôle primaire) ──────────────────────
     @org.springframework.data.jpa.repository.Query("""
         SELECT COUNT(p) > 0 FROM Peage p
         WHERE p.receiptNumber IS NOT NULL
@@ -43,18 +44,30 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
             @org.springframework.data.repository.query.Param("normalizedReceipt") String normalizedReceipt,
             @org.springframework.data.repository.query.Param("id") Long id);
 
+    // ── 2. Filet de sécurité : même véhicule + même montant + même date ±5min
+    //       + même gare d'entrée/sortie (pour bloquer les doublons OCR
+    //       tout en autorisant les trajets aller/retour sur le même axe) ────────
     @org.springframework.data.jpa.repository.Query("""
         SELECT COUNT(p) > 0 FROM Peage p
         WHERE p.vehicule.id = :vehiculeId
         AND p.amountTTC = :amountTTC
         AND p.datePassage BETWEEN :startDate AND :endDate
+        AND (
+            CAST(:gareEntree AS string) IS NULL OR LOWER(p.gareEntree) = LOWER(CAST(:gareEntree AS string))
+        )
+        AND (
+            CAST(:gareSortie AS string) IS NULL OR LOWER(p.gareSortie) = LOWER(CAST(:gareSortie AS string))
+        )
     """)
     boolean existsDuplicate(
             @org.springframework.data.repository.query.Param("vehiculeId") Long vehiculeId,
             @org.springframework.data.repository.query.Param("amountTTC") java.math.BigDecimal amountTTC,
             @org.springframework.data.repository.query.Param("startDate") java.time.LocalDateTime startDate,
-            @org.springframework.data.repository.query.Param("endDate") java.time.LocalDateTime endDate);
+            @org.springframework.data.repository.query.Param("endDate") java.time.LocalDateTime endDate,
+            @org.springframework.data.repository.query.Param("gareEntree") String gareEntree,
+            @org.springframework.data.repository.query.Param("gareSortie") String gareSortie);
 
+    // ── Filtrage paginé ─────────────────────────────────────────────────────────
     @org.springframework.data.jpa.repository.Query("""
         SELECT p FROM Peage p
         WHERE (:vehiculeId IS NULL OR p.vehicule.id = :vehiculeId)
