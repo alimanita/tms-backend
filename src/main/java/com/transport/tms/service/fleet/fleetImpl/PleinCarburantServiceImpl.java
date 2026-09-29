@@ -252,6 +252,17 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
             if (endDate != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("fillingDate"), endDate));
             }
+            if (query != null && !query.getResultType().equals(Long.class) && !query.getResultType().equals(long.class)) {
+                if (pageable.getSort().isSorted()) {
+                    java.util.List<jakarta.persistence.criteria.Order> orders = new java.util.ArrayList<>();
+                    for (org.springframework.data.domain.Sort.Order sortOrder : pageable.getSort()) {
+                        orders.add(sortOrder.isAscending() ? cb.asc(root.get(sortOrder.getProperty())) : cb.desc(root.get(sortOrder.getProperty())));
+                    }
+                    query.orderBy(orders);
+                } else {
+                    query.orderBy(cb.desc(root.get("fillingDate")));
+                }
+            }
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
 

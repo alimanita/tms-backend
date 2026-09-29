@@ -89,6 +89,26 @@ public class PeageServiceImpl implements PeageService {
             if (endDate != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("datePassage"), endDate));
             }
+
+            // Appliquer le tri directement dans la requête Criteria pour garantir le ORDER BY
+            // Contourne un bug Hibernate/Spring Data avec JpaSpecificationExecutor sur de grands volumes
+            if (query != null && !query.getResultType().equals(Long.class) && !query.getResultType().equals(long.class)) {
+                if (pageable.getSort().isSorted()) {
+                    java.util.List<jakarta.persistence.criteria.Order> orders = new java.util.ArrayList<>();
+                    for (org.springframework.data.domain.Sort.Order sortOrder : pageable.getSort()) {
+                        if (sortOrder.isAscending()) {
+                            orders.add(cb.asc(root.get(sortOrder.getProperty())));
+                        } else {
+                            orders.add(cb.desc(root.get(sortOrder.getProperty())));
+                        }
+                    }
+                    query.orderBy(orders);
+                } else {
+                    // Tri par défaut : plus récent en premier
+                    query.orderBy(cb.desc(root.get("datePassage")));
+                }
+            }
+
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
 
