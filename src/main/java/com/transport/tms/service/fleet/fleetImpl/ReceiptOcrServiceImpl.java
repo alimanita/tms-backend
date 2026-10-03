@@ -73,7 +73,16 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
             Map<String, Object> textContent = new HashMap<>();
             textContent.put("type", "text");
-            textContent.put("text", "Extrais les données de ce ticket de carburant. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, sans commentaires, avec exactement ces clés : 'quantityLiters' (nombre), 'totalCost' (nombre), 'tvaAmount' (nombre, 0 si non trouvé), 'fillingDate' (chaîne de caractères au format YYYY-MM-DD), 'fillingTime' (chaîne de caractères au format HH:mm correspondant à l'heure exacte de la transaction indiquée sur le ticket, par exemple dans un champ 'Fecha/Hora' ou 'Date/Heure' ; si aucune heure n'est visible, renvoie '00:00'), 'fuelType' (chaîne de caractères, ex: 'DIESEL', 'SANS PLOMB').");
+            textContent.put("text", "Extrais les données de ce ticket de carburant. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, sans commentaires, avec exactement ces clés : " +
+                "'quantityLiters' (nombre de litres), " +
+                "'totalCost' (montant TTC total, nombre décimal avec point), " +
+                "'tvaAmount' (montant TVA, nombre, 0 si non trouvé), " +
+                "'fillingDate' (date de la transaction au format YYYY-MM-DD), " +
+                "'fillingTime' (heure exacte de la transaction au format HH:mm, ex: '08:05' ; si aucune heure n'est visible, renvoie '00:00'), " +
+                "'fuelType' (type de carburant : 'DIESEL', 'ESSENCE', 'GPL' ou 'ELECTRIQUE'), " +
+                "'receiptNumber' (numéro unique du ticket — cherche sous les libellés : 'N° de ticket', 'N. de ticket', 'N. de transac.', 'N° transaction', 'Ticket No', 'Bon n°', 'FCx', 'Code hash'. " +
+                "Lis chaque caractère un par un sans doublons. Exemples : 'N° de ticket : 112000015067' => '112000015067', 'N. de transac.: 1313/5395660' => '1313/5395660'. " +
+                "Si aucun numéro de ticket/transaction n'est visible, renvoie null).");
 
             Map<String, Object> message = new HashMap<>();
             message.put("role", "user");
@@ -109,6 +118,8 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
                     .tvaAmount(getBigDecimalNode(jsonResult, "tvaAmount"))
                     .fillingDate(getLocalDateTimeNode(jsonResult, "fillingDate", "fillingTime"))
                     .fuelType(jsonResult.path("fuelType").asText(null))
+                    .receiptNumber(jsonResult.path("receiptNumber").isNull() || jsonResult.path("receiptNumber").isMissingNode()
+                            ? null : jsonResult.path("receiptNumber").asText(null))
                     .build();
 
         } catch (Exception e) {
@@ -368,6 +379,7 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
             imageContent.put("type", "image");
             imageContent.put("source", source);
 
+            int currentYear = LocalDate.now().getYear();
             Map<String, Object> textContent = new HashMap<>();
             textContent.put("type", "text");
             textContent.put("text",
@@ -376,8 +388,8 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
                 "'title' (chaîne, ex: numéro de chargement ou référence, comme '1135PDCHP' ou 'Mission Paris-Lyon'), " +
                 "'departureLocation' (chaîne, ville ou adresse complète de départ, ex: 'XOR4 Saint Sauveur, Hauts-de-France'), " +
                 "'arrivalLocation' (chaîne, ville ou adresse complète d'arrivée, ex: 'BCN8 Sabadell, Barcelona'), " +
-                "'plannedDeparture' (chaîne au format ISO 8601 YYYY-MM-DDTHH:mm:ss, date et heure de départ), " +
-                "'plannedReturn' (chaîne au format ISO 8601 YYYY-MM-DDTHH:mm:ss si date de retour/arrivée visible, sinon null), " +
+                "'plannedDeparture' (chaîne au format ISO 8601 YYYY-MM-DDTHH:mm:ss, date et heure de départ. IMPORTANT : nous sommes en " + currentYear + ". Si l'année n'est pas explicitement écrite sur le document comme sur Amazon Relay ex: 'sam., sept. 12', utilise OBLIGATOIREMENT l'année " + currentYear + "), " +
+                "'plannedReturn' (chaîne au format ISO 8601 YYYY-MM-DDTHH:mm:ss si date de retour/arrivée visible, sinon null. Même consigne pour l'année : utilise " + currentYear + " si omise), " +
                 "'revenue' (nombre décimal avec point comme séparateur décimal — ATTENTION : si tu vois '€2698,99' ou '2698,99' le montant est 2698.99 (deux-mille-six-cent-quatre-vingt-dix-huit euros quatre-vingt-dix-neuf cents), si tu vois '€698,99' c'est 698.99. La virgule est le séparateur décimal en format européen. Lis TOUS les chiffres avant la virgule, ne coupe pas le montant. Exemple Amazon Relay: '€2698,99' => 2698.99, '€1 234,56' => 1234.56), " +
                 "'cargoDescription' (chaîne décrivant le type de fret ou de transport, ex: 'Semi-remorque', 'Palettes', null si inconnu), " +
                 "'notes' (chaîne avec toutes autres informations utiles comme le nom des chauffeurs ou commentaires, null si rien). " +
@@ -411,12 +423,22 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
             JsonNode jsonResult = objectMapper.readTree(assistantReply);
 
+            LocalDateTime plannedDeparture = getLocalDateTimeNodeFromField(jsonResult, "plannedDeparture");
+            if (plannedDeparture != null && plannedDeparture.getYear() < currentYear) {
+                plannedDeparture = plannedDeparture.withYear(currentYear);
+            }
+
+            LocalDateTime plannedReturn = getLocalDateTimeNodeFromField(jsonResult, "plannedReturn");
+            if (plannedReturn != null && plannedReturn.getYear() < currentYear) {
+                plannedReturn = plannedReturn.withYear(currentYear);
+            }
+
             return com.transport.tms.dto.fleet.response.OcrMissionResult.builder()
                     .title(jsonResult.path("title").asText(null))
                     .departureLocation(jsonResult.path("departureLocation").asText(null))
                     .arrivalLocation(jsonResult.path("arrivalLocation").asText(null))
-                    .plannedDeparture(getLocalDateTimeNodeFromField(jsonResult, "plannedDeparture"))
-                    .plannedReturn(getLocalDateTimeNodeFromField(jsonResult, "plannedReturn"))
+                    .plannedDeparture(plannedDeparture)
+                    .plannedReturn(plannedReturn)
                     .revenue(getBigDecimalNode(jsonResult, "revenue"))
                     .cargoDescription(jsonResult.path("cargoDescription").asText(null))
                     .notes(jsonResult.path("notes").asText(null))

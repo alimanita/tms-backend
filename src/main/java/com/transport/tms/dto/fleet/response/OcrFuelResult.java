@@ -19,4 +19,5 @@ public class OcrFuelResult {
     private BigDecimal tvaAmount;
     private LocalDateTime fillingDate;
     private String fuelType;
+    private String receiptNumber;
 }

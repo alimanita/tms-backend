@@ -112,20 +112,26 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
         fileContent.put("source", source);
 
         String prompt = "Analyse ce document (ticket de péage, de carburant ou autre) et renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés :\n" +
-                "- 'documentType' : 'PEAGE' si c'est un ticket de péage/autoroute (mentions: gare, péage, autoroute, ASF, VINCI, SANEF, APRR, ADM, etc.), 'CARBURANT' si c'est un ticket de carburant/essence (mentions: litres, liters, diesel, essence, station, gazole, etc.), 'UNKNOWN' sinon.\n" +
+                "- 'documentType' : 'PEAGE' si c'est un ticket de péage/autoroute (mentions: gare, péage, autoroute, ASF, VINCI, SANEF, APRR, ADM, Toll Collect, Einbuchungsbeleg, etc.), 'CARBURANT' si c'est un ticket de carburant/essence (mentions: litres, liters, diesel, essence, station, gazole, pompe, etc.), 'UNKNOWN' sinon.\n" +
                 "- 'typeConfidence' : 'HIGH' si tu es certain du type (indices clairs), 'LOW' si tu as un doute.\n" +
-                "- 'operationDate' : la date de la transaction/opération au format YYYY-MM-DD. C'est la date à laquelle le paiement ou le passage a eu lieu. Ignore les dates d'impression de reçu, de validité de carte ou autres dates secondaires. Si plusieurs dates sont présentes, détermine quelle date correspond réellement à la date de l'opération. Si aucune date trouvée, mets null.\n" +
+                "- 'operationDate' : la date de la transaction/opération au format YYYY-MM-DD. C'est la date à laquelle le paiement ou le passage a eu lieu. Ignore les dates d'impression de reçu, de validité de carte ou autres dates secondaires. Si plusieurs dates sont présentes, détermine quelle date correspond réellement à la date de l'opération. Si l'année n'apparaît pas sur le ticket, utilise l'année en cours " + java.time.LocalDate.now().getYear() + ". Si aucune date trouvée, mets null.\n" +
                 "- 'operationTime' : l'heure de la transaction au format HH:mm. Si absente, mets '00:00'.\n" +
                 "- 'dateConfidence' : 'HIGH' si une seule date de transaction évidente, 'LOW' si plusieurs dates ambiguës ou incertitude sur laquelle est la bonne, 'NONE' si aucune date détectée.\n" +
                 "- 'dateWarning' : message explicatif en français si dateConfidence est LOW ou NONE (ex: 'Plusieurs dates détectées: 15/09 et 20/09. Date de transaction retenue: 20/09'), null sinon.\n" +
-                "- 'amountTTC' : montant TTC total payé (nombre), null si non trouvé.\n" +
+                "- 'amountTTC' : montant TTC total payé (nombre décimal avec point), null si non trouvé.\n" +
                 "- 'amountHT' : montant HT (nombre), null si non trouvé.\n" +
                 "- 'tvaRate' : taux TVA en % (nombre, ex: 20.0), null si non trouvé.\n" +
                 "- 'tvaAmount' : montant TVA (nombre), null si non trouvé.\n" +
                 "- 'gareEntree' : gare d'entrée (chaîne), null si non trouvé (uniquement pour PEAGE).\n" +
                 "- 'gareSortie' : gare de sortie (chaîne), null si non trouvé (uniquement pour PEAGE).\n" +
-                "- 'receiptNumber' : le numéro de référence exact du ticket (chaîne). Lis chaque caractère très attentivement un par un sans ajouter de chiffres en double (ex: ne pas répéter les derniers chiffres comme 27 en 277) et ne confonds pas 0 avec O ou 2 avec Z. Pour un péage ASF, il ressemble typiquement à 'R2530823031800400027'.\n" +
-                "- 'operatorName' : société opérateur (ex: ASF, VINCI, Total, Shell, ADM, Afriquia, etc.), null si non trouvé.\n" +
+                "- 'receiptNumber' : le numéro UNIQUE d'identification du ticket. C'est le champ le plus important — il permet d'éviter les doublons. " +
+                "Cherche sous tous ces libellés selon le type de ticket : " +
+                "CARBURANT : 'N° de ticket', 'N. de ticket', 'N. de transac.', 'N° transaction', 'Ticket No', 'Ticket Nr', 'Bon n°', 'Reçu n°', 'FCx', 'Code hash', 'N° facture'. " +
+                "PEAGE : 'Einbuchungsnummer', 'Booking reference', 'N° de passage', 'Numéro de référence', 'Receipt No', 'Ref'. " +
+                "Lis chaque caractère très attentivement un par un. Ne confonds pas 0 avec O, ni 1 avec I, ni 2 avec Z. Ne double pas les chiffres. " +
+                "Exemples : 'N° de ticket : 112000015067' => '112000015067', 'N. de transac.: 1313/5395660' => '1313/5395660', 'Einbuchungsnummer: 7827 8840 4337 1993' => '7827884043371993'. " +
+                "Si aucun numéro de ticket ou transaction n'est visible sur le document, mets null.\n" +
+                "- 'operatorName' : société opérateur (ex: ASF, VINCI, Total, TotalEnergies, Shell, CAMPSA, ADM, Afriquia, Toll Collect, etc.), null si non trouvé.\n" +
                 "- 'quantityLiters' : quantité de carburant en litres (nombre), null si non trouvé (uniquement pour CARBURANT).\n" +
                 "- 'pricePerLiter' : prix par litre (nombre), null si non trouvé (uniquement pour CARBURANT).\n" +
                 "- 'fuelType' : type de carburant ('DIESEL', 'ESSENCE', 'GPL', 'ELECTRIQUE'), null si non trouvé (uniquement pour CARBURANT).";

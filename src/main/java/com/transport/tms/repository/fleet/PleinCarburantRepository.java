@@ -27,7 +27,7 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
         WHERE p.receiptNumber IS NOT NULL
         AND (
             p.receiptNumber = :receiptNumber
-            OR REPLACE(REPLACE(REPLACE(UPPER(p.receiptNumber), ' ', ''), '-', ''), '_', '') = :normalizedReceipt
+            OR REPLACE(REPLACE(REPLACE(REPLACE(UPPER(p.receiptNumber), ' ', ''), '-', ''), '_', ''), '/', '') = :normalizedReceipt
         )
     """)
     boolean existsByReceiptNumber(
@@ -40,16 +40,36 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
         AND p.receiptNumber IS NOT NULL
         AND (
             p.receiptNumber = :receiptNumber
-            OR REPLACE(REPLACE(REPLACE(UPPER(p.receiptNumber), ' ', ''), '-', ''), '_', '') = :normalizedReceipt
+            OR REPLACE(REPLACE(REPLACE(REPLACE(UPPER(p.receiptNumber), ' ', ''), '-', ''), '_', ''), '/', '') = :normalizedReceipt
         )
     """)
     boolean existsByReceiptNumberAndIdNot(
             @Param("receiptNumber") String receiptNumber,
             @Param("normalizedReceipt") String normalizedReceipt,
             @Param("id") Long id);
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.chauffeur.id = :chauffeurId
+        AND CAST(p.fillingDate AS LocalDate) = CAST(:fillingDate AS LocalDate)
+        AND p.amountTTC = :amountTTC
+    """)
+    boolean existsByChauffeurAndDateAndAmount(
+            @Param("chauffeurId") Long chauffeurId,
+            @Param("fillingDate") LocalDateTime fillingDate,
+            @Param("amountTTC") java.math.BigDecimal amountTTC);
 
-
-
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.chauffeur.id = :chauffeurId
+        AND CAST(p.fillingDate AS LocalDate) = CAST(:fillingDate AS LocalDate)
+        AND p.amountTTC = :amountTTC
+        AND p.id <> :id
+    """)
+    boolean existsByChauffeurAndDateAndAmountAndIdNot(
+            @Param("chauffeurId") Long chauffeurId,
+            @Param("fillingDate") LocalDateTime fillingDate,
+            @Param("amountTTC") java.math.BigDecimal amountTTC,
+            @Param("id") Long id);
 
 
     @Query("""

@@ -53,15 +53,26 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
 
     @Override
     public PleinCarburantResponse create(PleinCarburantRequest request, MultipartFile proof) {
-        // 1. Contrôle d'unicité prioritaire sur la référence / numéro du ticket (avec normalisation)
+        // 1. Contrôle d'unicité prioritaire sur le numéro de ticket (avec normalisation)
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
-            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_]+", "").toUpperCase();
+            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (pleinRepository.existsByReceiptNumber(cleanReceipt, normalizedReceipt)) {
-                throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + cleanReceipt + ") existe déjà.");
+                throw new InvalidOperationException(
+                    "Ce ticket carburant a déjà été enregistré (N° " + cleanReceipt + "). Doublon refusé.");
+            }
+        } else {
+            // 2. Fallback si l'IA n'a pas trouvé de numéro de ticket :
+            //    même chauffeur + même jour + même montant TTC = doublon probable
+            if (request.chauffeurId() != null && request.fillingDate() != null && request.amountTTC() != null) {
+                if (pleinRepository.existsByChauffeurAndDateAndAmount(
+                        request.chauffeurId(), request.fillingDate(), request.amountTTC())) {
+                    throw new InvalidOperationException(
+                        "Un plein similaire existe déjà pour ce chauffeur à cette date avec le même montant ("
+                        + request.amountTTC() + " €). Ticket en double ?");
+                }
             }
         }
-
 
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
@@ -119,9 +130,18 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
     public PleinCarburantResponse update(Long id, PleinCarburantRequest request, MultipartFile proof) {
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
-            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_]+", "").toUpperCase();
+            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (pleinRepository.existsByReceiptNumberAndIdNot(cleanReceipt, normalizedReceipt, id)) {
-                throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+                throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + cleanReceipt + ") existe déjà.");
+            }
+        } else {
+            if (request.chauffeurId() != null && request.fillingDate() != null && request.amountTTC() != null) {
+                if (pleinRepository.existsByChauffeurAndDateAndAmountAndIdNot(
+                        request.chauffeurId(), request.fillingDate(), request.amountTTC(), id)) {
+                    throw new InvalidOperationException(
+                        "Un plein similaire existe déjà pour ce chauffeur à cette date avec le même montant ("
+                        + request.amountTTC() + " €).");
+                }
             }
         }
 
