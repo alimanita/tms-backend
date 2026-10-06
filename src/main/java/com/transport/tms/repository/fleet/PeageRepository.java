@@ -44,6 +44,36 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
             @org.springframework.data.repository.query.Param("normalizedReceipt") String normalizedReceipt,
             @org.springframework.data.repository.query.Param("id") Long id);
 
+    // ── Fallback : même véhicule + même jour + même montant TTC ─────────────────
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(p) > 0 FROM Peage p
+        WHERE p.vehicule.id = :vehiculeId
+        AND CAST(p.datePassage AS LocalDate) = CAST(:datePassage AS LocalDate)
+        AND (
+            p.amountTTC = :amountTTC
+            OR ABS(p.amountTTC - :amountTTC) < 0.1
+        )
+    """)
+    boolean existsByVehiculeAndDateAndAmount(
+            @org.springframework.data.repository.query.Param("vehiculeId") Long vehiculeId,
+            @org.springframework.data.repository.query.Param("datePassage") java.time.LocalDateTime datePassage,
+            @org.springframework.data.repository.query.Param("amountTTC") java.math.BigDecimal amountTTC);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(p) > 0 FROM Peage p
+        WHERE p.vehicule.id = :vehiculeId
+        AND CAST(p.datePassage AS LocalDate) = CAST(:datePassage AS LocalDate)
+        AND (
+            p.amountTTC = :amountTTC
+            OR ABS(p.amountTTC - :amountTTC) < 0.1
+        )
+        AND p.id <> :id
+    """)
+    boolean existsByVehiculeAndDateAndAmountAndIdNot(
+            @org.springframework.data.repository.query.Param("vehiculeId") Long vehiculeId,
+            @org.springframework.data.repository.query.Param("datePassage") java.time.LocalDateTime datePassage,
+            @org.springframework.data.repository.query.Param("amountTTC") java.math.BigDecimal amountTTC,
+            @org.springframework.data.repository.query.Param("id") Long id);
 
 
     // ── Filtrage paginé ─────────────────────────────────────────────────────────

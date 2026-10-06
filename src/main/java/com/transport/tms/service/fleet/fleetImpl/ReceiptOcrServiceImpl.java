@@ -73,16 +73,27 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
             Map<String, Object> textContent = new HashMap<>();
             textContent.put("type", "text");
-            textContent.put("text", "Extrais les données de ce ticket de carburant. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, sans commentaires, avec exactement ces clés : " +
-                "'quantityLiters' (nombre de litres), " +
-                "'totalCost' (montant TTC total, nombre décimal avec point), " +
+            int currentYear = java.time.LocalDate.now().getYear();
+            textContent.put("text",
+                "Extrais les données de ce ticket de carburant. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, sans commentaires, avec exactement ces clés : " +
+                "'quantityLiters' (nombre de litres, lis exactement les chiffres visibles — ex: '88,89' => 88.89), " +
+                "'totalCost' (montant TTC total, nombre décimal avec point. Ex: '200,00' => 200.00), " +
                 "'tvaAmount' (montant TVA, nombre, 0 si non trouvé), " +
-                "'fillingDate' (date de la transaction au format YYYY-MM-DD), " +
-                "'fillingTime' (heure exacte de la transaction au format HH:mm, ex: '08:05' ; si aucune heure n'est visible, renvoie '00:00'), " +
+                "'rawDate' (la chaîne EXACTE de la date telle qu'imprimée sur le ticket, ex: '01/10/26' ou '01/10/2026'), " +
+                "'fillingDate' (date de la transaction au format standard YYYY-MM-DD. " +
+                "ATTENTION RÈGLE CRITIQUE SUR LE FORMAT FRANÇAIS : Sur ce ticket, la date est TOUJOURS au format européen JOUR/MOIS/ANNÉE (JJ/MM/AA). " +
+                "Le premier nombre est le JOUR, le second est le MOIS, le troisième est l'ANNÉE. " +
+                "Exemple : '01/10/26' ou '01/10/2026' signifie 1er OCTOBRE 2026 => '2026-10-01' (et SURTOUT PAS le 10 janvier 2026). " +
+                "Exemple : '04/09/24' signifie 4 SEPTEMBRE 2024 => '2024-09-04'. " +
+                "Si aucune date n'est lisible, renvoie null.), " +
+                "'fillingTime' (heure exacte de la transaction au format HH:mm, ex: '08:57' ; si aucune heure n'est visible, renvoie '00:00'), " +
                 "'fuelType' (type de carburant : 'DIESEL', 'ESSENCE', 'GPL' ou 'ELECTRIQUE'), " +
-                "'receiptNumber' (numéro unique du ticket — cherche sous les libellés : 'N° de ticket', 'N. de ticket', 'N. de transac.', 'N° transaction', 'Ticket No', 'Bon n°', 'FCx', 'Code hash'. " +
-                "Lis chaque caractère un par un sans doublons. Exemples : 'N° de ticket : 112000015067' => '112000015067', 'N. de transac.: 1313/5395660' => '1313/5395660'. " +
-                "Si aucun numéro de ticket/transaction n'est visible, renvoie null).");
+                "'receiptNumber' (numéro unique du ticket — RÈGLES STRICTES : " +
+                "1) Cherche sous les libellés : 'N° de ticket', 'N. de ticket', 'N° transaction', 'N. de transac.', 'Ticket No', 'Bon n°', 'Reçu n°', 'FCx', 'Code', '#'. " +
+                "2) Lis chaque caractère UN PAR UN de gauche à droite SANS sauter ni doubler aucun caractère. " +
+                "3) Exemple sur ce ticket : 'N° de ticket : 012001049999' => '012001049999'. " +
+                "4) Si aucun numéro de ticket/transaction n'est visible, renvoie null.)."
+            );
 
             Map<String, Object> message = new HashMap<>();
             message.put("role", "user");
@@ -142,19 +153,23 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
 
     /**
      * Combine la date et l'heure extraites du ticket en un seul LocalDateTime.
-     * Si l'heure est absente ou invalide, on retombe sur minuit (comportement précédent).
+     * Tente en priorité d'analyser la chaîne brute française (JJ/MM/AA ou JJ/MM/AAAA),
+     * puis la date ISO YYYY-MM-DD.
      */
     private LocalDateTime getLocalDateTimeNode(JsonNode node, String dateField, String timeField) {
-        JsonNode dateNode = node.path(dateField);
-        if (dateNode.isMissingNode() || dateNode.isNull() || dateNode.asText().isEmpty()) {
-            return null;
+        // 1. Essayer d'abord rawDate si présent
+        JsonNode rawDateNode = node.path("rawDate");
+        LocalDate date = parseDateString(rawDateNode.isMissingNode() || rawDateNode.isNull() ? null : rawDateNode.asText());
+
+        // 2. Si non trouvé via rawDate, essayer le champ date principal
+        if (date == null) {
+            JsonNode dateNode = node.path(dateField);
+            if (!dateNode.isMissingNode() && !dateNode.isNull() && !dateNode.asText().isEmpty()) {
+                date = parseDateString(dateNode.asText());
+            }
         }
 
-        LocalDate date;
-        try {
-            date = LocalDate.parse(dateNode.asText(), DateTimeFormatter.ISO_LOCAL_DATE);
-        } catch (Exception e) {
-            log.warn("Impossible de parser la date extraite '{}', champ ignoré.", dateNode.asText());
+        if (date == null) {
             return null;
         }
 
@@ -175,6 +190,34 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
         }
 
         return LocalDateTime.of(date, time);
+    }
+
+    public static LocalDate parseDateString(String text) {
+        if (text == null || text.trim().isEmpty() || "null".equalsIgnoreCase(text.trim())) {
+            return null;
+        }
+        String clean = text.trim();
+
+        // 1. Format français / européen JJ/MM/AA ou JJ/MM/AAAA (séparateurs /, -, .)
+        java.util.regex.Matcher frMatcher = java.util.regex.Pattern.compile("^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{2,4})$").matcher(clean);
+        if (frMatcher.matches()) {
+            try {
+                int day = Integer.parseInt(frMatcher.group(1));
+                int month = Integer.parseInt(frMatcher.group(2));
+                int year = Integer.parseInt(frMatcher.group(3));
+                if (year < 100) {
+                    year += 2000;
+                }
+                return LocalDate.of(year, month, day);
+            } catch (Exception ignored) {}
+        }
+
+        // 2. Format ISO YYYY-MM-DD
+        try {
+            return LocalDate.parse(clean, DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (Exception ignored) {}
+
+        return null;
     }
 
     @Override
@@ -213,7 +256,9 @@ public class ReceiptOcrServiceImpl implements ReceiptOcrService {
             textContent.put("text",
                 "Extrais les données de ce ticket de péage autoroutier. Renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés : " +
                 "'amountTTC' (nombre), 'amountHT' (nombre, 0 si non trouvé), 'tvaAmount' (nombre, 0 si non trouvé), 'tvaRate' (nombre, ex: 20.0, 0 si non trouvé), " +
-                "'receiptDate' (chaîne YYYY-MM-DD), 'receiptTime' (chaîne HH:mm), " +
+                "'rawDate' (la chaîne EXACTE de la date telle qu'imprimée sur le ticket, ex: '01/10/26' ou '01/10/2026'), " +
+                "'receiptDate' (chaîne YYYY-MM-DD. ATTENTION : Le format est français/européen JOUR/MOIS/ANNÉE (JJ/MM/AA). '01/10/26' = 1er OCTOBRE 2026 => '2026-10-01' et NON '2026-01-10'), " +
+                "'receiptTime' (chaîne HH:mm), " +
                 "'entree' (gare d'entrée, chaîne), 'sortie' (gare de sortie, chaîne), " +
                 "'operator' (société ex: ASF, VINCI, SANEF, APRR, chaîne), " +
                 "'receiptNumber' (le numéro de reçu/ticket tel qu'imprimé sur le ticket, RÈGLES STRICTES : " +

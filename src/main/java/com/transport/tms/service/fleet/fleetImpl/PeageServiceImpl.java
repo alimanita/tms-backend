@@ -172,14 +172,22 @@ public class PeageServiceImpl implements PeageService {
         // 1. Contrôle d'unicité prioritaire sur la référence / numéro du ticket (avec normalisation)
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
-            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_]+", "").toUpperCase();
+            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (peageRepository.existsByReceiptNumber(cleanReceipt, normalizedReceipt)) {
-                throw new com.transport.tms.exception.InvalidOperationException("Un péage avec ce numéro de justificatif (" + cleanReceipt + ") existe déjà.");
+                throw new com.transport.tms.exception.InvalidOperationException(
+                    "Ce ticket de péage a déjà été enregistré (N° " + cleanReceipt + "). Doublon refusé.");
             }
         }
 
-
-
+        // 2. Contrôle combiné strict : même véhicule + même jour + même montant TTC = doublon refusé
+        if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
+            if (peageRepository.existsByVehiculeAndDateAndAmount(
+                    request.vehiculeId(), request.datePassage(), request.amountTTC())) {
+                throw new com.transport.tms.exception.InvalidOperationException(
+                    "Un péage similaire existe déjà pour ce véhicule à cette date avec le montant ("
+                    + request.amountTTC() + " €). Doublon refusé.");
+            }
+        }
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
                 .orElseThrow(() -> new EntityNotFoundException("Véhicule non trouvé"));
@@ -215,9 +223,19 @@ public class PeageServiceImpl implements PeageService {
     public PeageResponse update(Long id, PeageRequest request, MultipartFile proof) {
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
-            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_]+", "").toUpperCase();
+            String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (peageRepository.existsByReceiptNumberAndIdNot(cleanReceipt, normalizedReceipt, id)) {
-                throw new com.transport.tms.exception.InvalidOperationException("Un péage avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+                throw new com.transport.tms.exception.InvalidOperationException(
+                    "Un péage avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+            }
+        }
+
+        if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
+            if (peageRepository.existsByVehiculeAndDateAndAmountAndIdNot(
+                    request.vehiculeId(), request.datePassage(), request.amountTTC(), id)) {
+                throw new com.transport.tms.exception.InvalidOperationException(
+                    "Un péage similaire existe déjà pour ce véhicule à cette date avec le montant ("
+                    + request.amountTTC() + " €).");
             }
         }
 

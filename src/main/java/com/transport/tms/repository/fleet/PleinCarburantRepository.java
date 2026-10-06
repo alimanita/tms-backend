@@ -51,7 +51,10 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
         SELECT COUNT(p) > 0 FROM PleinCarburant p
         WHERE p.chauffeur.id = :chauffeurId
         AND CAST(p.fillingDate AS LocalDate) = CAST(:fillingDate AS LocalDate)
-        AND p.amountTTC = :amountTTC
+        AND (
+            p.amountTTC = :amountTTC
+            OR ABS(COALESCE(p.amountTTC, p.quantityLiters * p.pricePerLiter) - :amountTTC) < 0.1
+        )
     """)
     boolean existsByChauffeurAndDateAndAmount(
             @Param("chauffeurId") Long chauffeurId,
@@ -62,11 +65,45 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
         SELECT COUNT(p) > 0 FROM PleinCarburant p
         WHERE p.chauffeur.id = :chauffeurId
         AND CAST(p.fillingDate AS LocalDate) = CAST(:fillingDate AS LocalDate)
-        AND p.amountTTC = :amountTTC
+        AND (
+            p.amountTTC = :amountTTC
+            OR ABS(COALESCE(p.amountTTC, p.quantityLiters * p.pricePerLiter) - :amountTTC) < 0.1
+        )
         AND p.id <> :id
     """)
     boolean existsByChauffeurAndDateAndAmountAndIdNot(
             @Param("chauffeurId") Long chauffeurId,
+            @Param("fillingDate") LocalDateTime fillingDate,
+            @Param("amountTTC") java.math.BigDecimal amountTTC,
+            @Param("id") Long id);
+
+    // ── Fallback : même véhicule + même jour + même montant TTC ────────────────
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.vehicule.id = :vehiculeId
+        AND CAST(p.fillingDate AS LocalDate) = CAST(:fillingDate AS LocalDate)
+        AND (
+            p.amountTTC = :amountTTC
+            OR ABS(COALESCE(p.amountTTC, p.quantityLiters * p.pricePerLiter) - :amountTTC) < 0.1
+        )
+    """)
+    boolean existsByVehiculeAndDateAndAmount(
+            @Param("vehiculeId") Long vehiculeId,
+            @Param("fillingDate") LocalDateTime fillingDate,
+            @Param("amountTTC") java.math.BigDecimal amountTTC);
+
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.vehicule.id = :vehiculeId
+        AND CAST(p.fillingDate AS LocalDate) = CAST(:fillingDate AS LocalDate)
+        AND (
+            p.amountTTC = :amountTTC
+            OR ABS(COALESCE(p.amountTTC, p.quantityLiters * p.pricePerLiter) - :amountTTC) < 0.1
+        )
+        AND p.id <> :id
+    """)
+    boolean existsByVehiculeAndDateAndAmountAndIdNot(
+            @Param("vehiculeId") Long vehiculeId,
             @Param("fillingDate") LocalDateTime fillingDate,
             @Param("amountTTC") java.math.BigDecimal amountTTC,
             @Param("id") Long id);

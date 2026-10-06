@@ -111,26 +111,29 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
         fileContent.put("type", isPdf ? "document" : "image");
         fileContent.put("source", source);
 
+        int currentYear = java.time.LocalDate.now().getYear();
         String prompt = "Analyse ce document (ticket de péage, de carburant ou autre) et renvoie UNIQUEMENT un objet JSON valide, sans markdown, avec exactement ces clés :\n" +
                 "- 'documentType' : 'PEAGE' si c'est un ticket de péage/autoroute (mentions: gare, péage, autoroute, ASF, VINCI, SANEF, APRR, ADM, Toll Collect, Einbuchungsbeleg, etc.), 'CARBURANT' si c'est un ticket de carburant/essence (mentions: litres, liters, diesel, essence, station, gazole, pompe, etc.), 'UNKNOWN' sinon.\n" +
                 "- 'typeConfidence' : 'HIGH' si tu es certain du type (indices clairs), 'LOW' si tu as un doute.\n" +
-                "- 'operationDate' : la date de la transaction/opération au format YYYY-MM-DD. C'est la date à laquelle le paiement ou le passage a eu lieu. Ignore les dates d'impression de reçu, de validité de carte ou autres dates secondaires. Si plusieurs dates sont présentes, détermine quelle date correspond réellement à la date de l'opération. Si l'année n'apparaît pas sur le ticket, utilise l'année en cours " + java.time.LocalDate.now().getYear() + ". Si aucune date trouvée, mets null.\n" +
+                "- 'operationDate' : la date de la transaction/opération au format YYYY-MM-DD. RÈGLES STRICTES SUR LA DATE :\n" +
+                "  1) Lis l'année exacte imprimée sur le ticket. Si le ticket indique '2024' ou '/24', l'année est 2024. N'utilise l'année en cours " + currentYear + " QUE si l'année est totalement absente du ticket.\n" +
+                "  2) Ne confonds pas le jour et le mois (en France/Europe, format DD/MM/YYYY : le 04/09/24 est le 4 septembre 2024 => '2024-09-04').\n" +
+                "  3) Ignore les dates de péremption, de carte bancaire, d'impression ultérieure. Ne retiens QUE la date du paiement/passage.\n" +
+                "  4) Si aucune date n'est présente, mets null.\n" +
                 "- 'operationTime' : l'heure de la transaction au format HH:mm. Si absente, mets '00:00'.\n" +
-                "- 'dateConfidence' : 'HIGH' si une seule date de transaction évidente, 'LOW' si plusieurs dates ambiguës ou incertitude sur laquelle est la bonne, 'NONE' si aucune date détectée.\n" +
-                "- 'dateWarning' : message explicatif en français si dateConfidence est LOW ou NONE (ex: 'Plusieurs dates détectées: 15/09 et 20/09. Date de transaction retenue: 20/09'), null sinon.\n" +
+                "- 'dateConfidence' : 'HIGH' si la date de transaction est claire et certaine, 'LOW' si plusieurs dates ambiguës, 'NONE' si aucune date détectée.\n" +
+                "- 'dateWarning' : message explicatif en français si dateConfidence est LOW ou NONE, null sinon.\n" +
                 "- 'amountTTC' : montant TTC total payé (nombre décimal avec point), null si non trouvé.\n" +
                 "- 'amountHT' : montant HT (nombre), null si non trouvé.\n" +
                 "- 'tvaRate' : taux TVA en % (nombre, ex: 20.0), null si non trouvé.\n" +
                 "- 'tvaAmount' : montant TVA (nombre), null si non trouvé.\n" +
                 "- 'gareEntree' : gare d'entrée (chaîne), null si non trouvé (uniquement pour PEAGE).\n" +
                 "- 'gareSortie' : gare de sortie (chaîne), null si non trouvé (uniquement pour PEAGE).\n" +
-                "- 'receiptNumber' : le numéro UNIQUE d'identification du ticket. C'est le champ le plus important — il permet d'éviter les doublons. " +
-                "Cherche sous tous ces libellés selon le type de ticket : " +
-                "CARBURANT : 'N° de ticket', 'N. de ticket', 'N. de transac.', 'N° transaction', 'Ticket No', 'Ticket Nr', 'Bon n°', 'Reçu n°', 'FCx', 'Code hash', 'N° facture'. " +
-                "PEAGE : 'Einbuchungsnummer', 'Booking reference', 'N° de passage', 'Numéro de référence', 'Receipt No', 'Ref'. " +
-                "Lis chaque caractère très attentivement un par un. Ne confonds pas 0 avec O, ni 1 avec I, ni 2 avec Z. Ne double pas les chiffres. " +
-                "Exemples : 'N° de ticket : 112000015067' => '112000015067', 'N. de transac.: 1313/5395660' => '1313/5395660', 'Einbuchungsnummer: 7827 8840 4337 1993' => '7827884043371993'. " +
-                "Si aucun numéro de ticket ou transaction n'est visible sur le document, mets null.\n" +
+                "- 'receiptNumber' : le numéro UNIQUE d'identification du ticket. C'est le champ le plus important pour éviter les doublons. RÈGLES STRICTES :\n" +
+                "  1) Cherche sous les libellés : 'N° de ticket', 'N. de ticket', 'N. de transac.', 'N° transaction', 'Ticket No', 'Ticket Nr', 'Bon n°', 'Reçu n°', 'FCx', 'Code hash', 'N° facture', 'Einbuchungsnummer', 'Booking ref', 'N° passage'.\n" +
+                "  2) Lis chaque caractère UN PAR UN de gauche à droite SANS sauter ni doubler aucun caractère.\n" +
+                "  3) Recopie EXACTEMENT la chaîne lisible. Ex: 'N° de ticket : 112000015067' => '112000015067', 'N. de transac.: 1313/5395660' => '1313/5395660'.\n" +
+                "  4) Si aucun numéro n'est visible, mets null.\n" +
                 "- 'operatorName' : société opérateur (ex: ASF, VINCI, Total, TotalEnergies, Shell, CAMPSA, ADM, Afriquia, Toll Collect, etc.), null si non trouvé.\n" +
                 "- 'quantityLiters' : quantité de carburant en litres (nombre), null si non trouvé (uniquement pour CARBURANT).\n" +
                 "- 'pricePerLiter' : prix par litre (nombre), null si non trouvé (uniquement pour CARBURANT).\n" +
@@ -175,7 +178,10 @@ public class BatchTicketOcrServiceImpl implements BatchTicketOcrService {
 
         if (rawDateStr != null && !rawDateStr.isEmpty() && !"null".equalsIgnoreCase(rawDateStr)) {
             try {
-                LocalDate date = LocalDate.parse(rawDateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+                LocalDate date = ReceiptOcrServiceImpl.parseDateString(rawDateStr);
+                if (date == null) {
+                    throw new IllegalArgumentException("Format de date non reconnu: " + rawDateStr);
+                }
                 LocalTime time = LocalTime.MIDNIGHT;
                 try {
                     time = LocalTime.parse(rawTimeStr, DateTimeFormatter.ofPattern("HH:mm"));

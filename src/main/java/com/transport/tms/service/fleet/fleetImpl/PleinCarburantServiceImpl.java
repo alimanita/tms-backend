@@ -53,6 +53,11 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
 
     @Override
     public PleinCarburantResponse create(PleinCarburantRequest request, MultipartFile proof) {
+        BigDecimal effectiveAmountTTC = request.amountTTC();
+        if (effectiveAmountTTC == null && request.quantityLiters() != null && request.pricePerLiter() != null) {
+            effectiveAmountTTC = request.quantityLiters().multiply(request.pricePerLiter()).setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+
         // 1. Contrôle d'unicité prioritaire sur le numéro de ticket (avec normalisation)
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
@@ -61,16 +66,23 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
                 throw new InvalidOperationException(
                     "Ce ticket carburant a déjà été enregistré (N° " + cleanReceipt + "). Doublon refusé.");
             }
-        } else {
-            // 2. Fallback si l'IA n'a pas trouvé de numéro de ticket :
-            //    même chauffeur + même jour + même montant TTC = doublon probable
-            if (request.chauffeurId() != null && request.fillingDate() != null && request.amountTTC() != null) {
-                if (pleinRepository.existsByChauffeurAndDateAndAmount(
-                        request.chauffeurId(), request.fillingDate(), request.amountTTC())) {
-                    throw new InvalidOperationException(
-                        "Un plein similaire existe déjà pour ce chauffeur à cette date avec le même montant ("
-                        + request.amountTTC() + " €). Ticket en double ?");
-                }
+        }
+
+        // 2. Contrôle combiné strict (MÊME véhicule + MÊME date + MÊME montant TTC)
+        //    Ce contrôle s'exécute TOUJOURS pour bloquer les doublons même si le numéro de ticket est absent ou différent
+        if (request.vehiculeId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
+            if (pleinRepository.existsByVehiculeAndDateAndAmount(
+                    request.vehiculeId(), request.fillingDate(), effectiveAmountTTC)) {
+                throw new InvalidOperationException(
+                    "Un plein similaire existe déjà pour ce véhicule à cette date avec le montant ("
+                    + effectiveAmountTTC + " €). Doublon refusé.");
+            }
+        } else if (request.chauffeurId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
+            if (pleinRepository.existsByChauffeurAndDateAndAmount(
+                    request.chauffeurId(), request.fillingDate(), effectiveAmountTTC)) {
+                throw new InvalidOperationException(
+                    "Un plein similaire existe déjà pour ce chauffeur à cette date avec le montant ("
+                    + effectiveAmountTTC + " €). Doublon refusé.");
             }
         }
 
@@ -128,20 +140,32 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
 
     @Override
     public PleinCarburantResponse update(Long id, PleinCarburantRequest request, MultipartFile proof) {
+        BigDecimal effectiveAmountTTC = request.amountTTC();
+        if (effectiveAmountTTC == null && request.quantityLiters() != null && request.pricePerLiter() != null) {
+            effectiveAmountTTC = request.quantityLiters().multiply(request.pricePerLiter()).setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
             String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (pleinRepository.existsByReceiptNumberAndIdNot(cleanReceipt, normalizedReceipt, id)) {
                 throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + cleanReceipt + ") existe déjà.");
             }
-        } else {
-            if (request.chauffeurId() != null && request.fillingDate() != null && request.amountTTC() != null) {
-                if (pleinRepository.existsByChauffeurAndDateAndAmountAndIdNot(
-                        request.chauffeurId(), request.fillingDate(), request.amountTTC(), id)) {
-                    throw new InvalidOperationException(
-                        "Un plein similaire existe déjà pour ce chauffeur à cette date avec le même montant ("
-                        + request.amountTTC() + " €).");
-                }
+        }
+
+        if (request.vehiculeId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
+            if (pleinRepository.existsByVehiculeAndDateAndAmountAndIdNot(
+                    request.vehiculeId(), request.fillingDate(), effectiveAmountTTC, id)) {
+                throw new InvalidOperationException(
+                    "Un plein similaire existe déjà pour ce véhicule à cette date avec le montant ("
+                    + effectiveAmountTTC + " €).");
+            }
+        } else if (request.chauffeurId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
+            if (pleinRepository.existsByChauffeurAndDateAndAmountAndIdNot(
+                    request.chauffeurId(), request.fillingDate(), effectiveAmountTTC, id)) {
+                throw new InvalidOperationException(
+                    "Un plein similaire existe déjà pour ce chauffeur à cette date avec le montant ("
+                    + effectiveAmountTTC + " €).");
             }
         }
 
