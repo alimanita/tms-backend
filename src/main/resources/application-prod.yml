@@ -16,6 +16,8 @@ spring:
 tms:
   jwt:
     secret: ${JWT_SECRET}
+  access-token-expiration-ms: ${JWT_EXPIRATION:604800000} # 7 jours
+  refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION:2592000000} # 30 jours
   cors:
     allowed-origins: ${CORS_ORIGINS}
 springdoc:

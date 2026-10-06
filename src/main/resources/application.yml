@@ -27,8 +27,8 @@ server:
 tms:
   jwt:
     secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBobWFjU0hBMzg0LWF0LWxlYXN0LTM4NC1iaXRzLWxvbmcx}
-  access-token-expiration-ms: 1800000
-  refresh-token-expiration-ms: 2592000000
+  access-token-expiration-ms: ${JWT_EXPIRATION:604800000} # 7 jours (604800000 ms) au lieu de 30 min (1800000 ms)
+  refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION:2592000000} # 30 jours
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:8080}
   anthropic:
