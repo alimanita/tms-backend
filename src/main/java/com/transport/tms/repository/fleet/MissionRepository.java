@@ -193,9 +193,8 @@ public interface MissionRepository extends JpaRepository<Mission, Long>, JpaSpec
                COALESCE(SUM(m.revenue), 0), COALESCE(SUM(m.totalCost), 0), COUNT(m)
         FROM Mission m
         JOIN m.chauffeurSlots cs JOIN cs.chauffeur c
-        WHERE m.statut = 'COMPLETED'
-        AND m.actualReturn IS NOT NULL
-        AND m.actualReturn BETWEEN :debut AND :fin
+        WHERE m.statut = com.transport.tms.domain.entity.fleet.Mission.StatutMission.COMPLETED
+        AND COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt) BETWEEN :debut AND :fin
         GROUP BY c.id, c.nom, c.prenom, c.valeurSalaire, c.typeSalaire
         ORDER BY c.nom ASC
         """)
@@ -204,14 +203,13 @@ public interface MissionRepository extends JpaRepository<Mission, Long>, JpaSpec
             @Param("fin") LocalDateTime fin);
 
     @Query("""
-        SELECT m.id, m.reference, m.actualReturn, m.revenue, m.totalCost
+        SELECT m.id, m.reference, COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt), m.revenue, m.totalCost
         FROM Mission m
         JOIN m.chauffeurSlots cs JOIN cs.chauffeur c
-        WHERE m.statut = 'COMPLETED'
-        AND m.actualReturn IS NOT NULL
+        WHERE m.statut = com.transport.tms.domain.entity.fleet.Mission.StatutMission.COMPLETED
         AND c.id = :chauffeurId
-        AND m.actualReturn BETWEEN :debut AND :fin
-        ORDER BY m.actualReturn DESC
+        AND COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt) BETWEEN :debut AND :fin
+        ORDER BY COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt) DESC
         """)
     List<Object[]> missionsChauffeurSurPeriode(
             @Param("chauffeurId") Long chauffeurId,
@@ -220,24 +218,24 @@ public interface MissionRepository extends JpaRepository<Mission, Long>, JpaSpec
 
     // ── RAPPORT AMAZON filtré par période : revenus par mois ──────────────────
     @Query("""
-        SELECT EXTRACT(MONTH FROM m.actualReturn), COALESCE(SUM(m.revenue), 0)
+        SELECT EXTRACT(MONTH FROM COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt)), COALESCE(SUM(m.revenue), 0)
         FROM Mission m
-        WHERE m.statut = 'COMPLETED' AND m.actualReturn IS NOT NULL
-        AND m.actualReturn BETWEEN :debut AND :fin
-        GROUP BY EXTRACT(MONTH FROM m.actualReturn)
-        ORDER BY EXTRACT(MONTH FROM m.actualReturn)
+        WHERE m.statut = com.transport.tms.domain.entity.fleet.Mission.StatutMission.COMPLETED
+        AND COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt) BETWEEN :debut AND :fin
+        GROUP BY EXTRACT(MONTH FROM COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt))
+        ORDER BY EXTRACT(MONTH FROM COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt))
         """)
     List<Object[]> sumRevenueByMonthBetween(
             @Param("debut") LocalDateTime debut,
             @Param("fin") LocalDateTime fin);
 
     @Query("""
-        SELECT EXTRACT(YEAR FROM m.actualReturn), COALESCE(SUM(m.revenue), 0)
+        SELECT EXTRACT(YEAR FROM COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt)), COALESCE(SUM(m.revenue), 0)
         FROM Mission m
-        WHERE m.statut = 'COMPLETED' AND m.actualReturn IS NOT NULL
-        AND EXTRACT(YEAR FROM m.actualReturn) BETWEEN :anDebut AND :anFin
-        GROUP BY EXTRACT(YEAR FROM m.actualReturn)
-        ORDER BY EXTRACT(YEAR FROM m.actualReturn)
+        WHERE m.statut = com.transport.tms.domain.entity.fleet.Mission.StatutMission.COMPLETED
+        AND EXTRACT(YEAR FROM COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt)) BETWEEN :anDebut AND :anFin
+        GROUP BY EXTRACT(YEAR FROM COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt))
+        ORDER BY EXTRACT(YEAR FROM COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt))
         """)
     List<Object[]> sumRevenueByYearBetween(
             @Param("anDebut") int anDebut,
