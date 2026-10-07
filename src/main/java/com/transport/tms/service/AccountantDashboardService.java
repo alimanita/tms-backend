@@ -4,6 +4,7 @@ import com.transport.tms.dto.response.AccountantDashboardResponse;
 
 import com.transport.tms.repository.fleet.MissionRepository;
 import com.transport.tms.repository.fleet.OrdreTravailRepository;
+import com.transport.tms.repository.fleet.PeageRepository;
 import com.transport.tms.repository.fleet.PleinCarburantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class AccountantDashboardService {
 
     private final MissionRepository missionRepository;
     private final PleinCarburantRepository pleinCarburantRepository;
+    private final PeageRepository peageRepository;
     private final OrdreTravailRepository ordreTravailRepository;
 
     @Transactional(readOnly = true)
@@ -41,8 +43,8 @@ public class AccountantDashboardService {
         BigDecimal estVatOnFuel = totalFuel.multiply(new BigDecimal("0.20")).setScale(2, RoundingMode.HALF_UP);
         response.setEstimatedVatOnFuel(estVatOnFuel);
 
-        // Toll
-        BigDecimal totalToll = missionRepository.sumAllTollCost();
+        // Toll (depuis la table peage)
+        BigDecimal totalToll = peageRepository.sumAllCoutPeage();
         if (totalToll == null) totalToll = BigDecimal.ZERO;
         response.setTotalTollExpenses(totalToll);
         // Assuming VAT is 20% on toll
