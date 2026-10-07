@@ -154,13 +154,7 @@ public class RapportsApiController {
             int ad = anDebut > 0 ? anDebut : LocalDate.now().getYear() - 4;
             int af = anFin   > 0 ? anFin   : LocalDate.now().getYear();
 
-            // OT par année
-            for (Object[] row : ordreTravailRepository.sumCostByYearMonth(
-                    java.time.LocalDateTime.now().minusYears(10))) {
-                // On ne garde que les données annuelles agrégées plus bas
-            }
-
-            // Agrégation annuelle : Dépenses mission + Carburant + OT
+            // Agrégation annuelle : Dépenses mission + Carburant + Péage + OT + Dépenses diverses
             java.util.Map<String, java.math.BigDecimal> annual = new java.util.TreeMap<>();
             for (Object[] row : depenseMissionRepository.sumCostByYearMonth(
                     java.time.LocalDateTime.of(ad, 1, 1, 0, 0))) {
@@ -176,7 +170,21 @@ public class RapportsApiController {
                     annual.merge(key, new java.math.BigDecimal(row[2].toString()), java.math.BigDecimal::add);
                 }
             }
+            for (Object[] row : peageRepository.sumCostByYearMonth(
+                    java.time.LocalDateTime.of(ad, 1, 1, 0, 0))) {
+                if (row[0] != null && row[1] != null && row[2] != null) {
+                    String key = row[0].toString();
+                    annual.merge(key, new java.math.BigDecimal(row[2].toString()), java.math.BigDecimal::add);
+                }
+            }
             for (Object[] row : ordreTravailRepository.sumCostByYearMonth(
+                    java.time.LocalDateTime.of(ad, 1, 1, 0, 0))) {
+                if (row[0] != null && row[1] != null && row[2] != null) {
+                    String key = row[0].toString();
+                    annual.merge(key, new java.math.BigDecimal(row[2].toString()), java.math.BigDecimal::add);
+                }
+            }
+            for (Object[] row : depenseDiverseRepository.sumCostByYearMonth(
                     java.time.LocalDateTime.of(ad, 1, 1, 0, 0))) {
                 if (row[0] != null && row[1] != null && row[2] != null) {
                     String key = row[0].toString();
@@ -205,7 +213,19 @@ public class RapportsApiController {
                             new java.math.BigDecimal(row[2].toString()), java.math.BigDecimal::add);
                 }
             }
+            for (Object[] row : peageRepository.sumCostByYearMonth(d)) {
+                if (row[0] != null && row[1] != null && row[2] != null) {
+                    expensesByMonth.merge(row[1].toString(),
+                            new java.math.BigDecimal(row[2].toString()), java.math.BigDecimal::add);
+                }
+            }
             for (Object[] row : ordreTravailRepository.sumCostByYearMonth(d)) {
+                if (row[0] != null && row[1] != null && row[2] != null) {
+                    expensesByMonth.merge(row[1].toString(),
+                            new java.math.BigDecimal(row[2].toString()), java.math.BigDecimal::add);
+                }
+            }
+            for (Object[] row : depenseDiverseRepository.sumCostByYearMonth(d)) {
                 if (row[0] != null && row[1] != null && row[2] != null) {
                     expensesByMonth.merge(row[1].toString(),
                             new java.math.BigDecimal(row[2].toString()), java.math.BigDecimal::add);
@@ -213,23 +233,39 @@ public class RapportsApiController {
             }
         }
 
-        // Catégories (toutes périodes)
+        // Catégories (toutes dépenses réelles de la flotte)
         java.util.Map<String, java.math.BigDecimal> expensesBySupplier = new java.util.LinkedHashMap<>();
         for (Object[] row : depenseMissionRepository.sumCostByExpenseType()) {
-            if (row[0] != null && row[1] != null)
-                expensesBySupplier.merge(row[0].toString(),
-                        new java.math.BigDecimal(row[1].toString()), java.math.BigDecimal::add);
+            if (row[0] != null && row[1] != null) {
+                String typeStr = row[0].toString().toUpperCase();
+                String categoryKey = "OTHER";
+                if ("CARBURANT".equals(typeStr)) categoryKey = "CARBURANT";
+                else if ("PEAGE".equals(typeStr) || "TOLL".equals(typeStr)) categoryKey = "TOLL";
+                else if ("MAINTENANCE".equals(typeStr) || "ENTRETIEN".equals(typeStr)) categoryKey = "MAINTENANCE";
+
+                expensesBySupplier.merge(categoryKey, new java.math.BigDecimal(row[1].toString()), java.math.BigDecimal::add);
+            }
         }
         java.math.BigDecimal tc = pleinCarburantRepository.sumAllCoutCarburant();
         if (tc != null && tc.compareTo(java.math.BigDecimal.ZERO) > 0)
             expensesBySupplier.merge("CARBURANT", tc, java.math.BigDecimal::add);
+
+        java.math.BigDecimal tp = peageRepository.sumAllCoutPeage();
+        if (tp != null && tp.compareTo(java.math.BigDecimal.ZERO) > 0)
+            expensesBySupplier.merge("TOLL", tp, java.math.BigDecimal::add);
+
         java.math.BigDecimal tm = ordreTravailRepository.sumAllCout();
         if (tm != null && tm.compareTo(java.math.BigDecimal.ZERO) > 0)
             expensesBySupplier.merge("MAINTENANCE", tm, java.math.BigDecimal::add);
 
+        java.math.BigDecimal td = depenseDiverseRepository.sumAllCout();
+        if (td != null && td.compareTo(java.math.BigDecimal.ZERO) > 0)
+            expensesBySupplier.merge("OTHER", td, java.math.BigDecimal::add);
+
         dto.setExpensesByMonth(expensesByMonth);
         dto.setExpensesBySupplier(expensesBySupplier);
         return ResponseEntity.ok(dto);
+
     }
 
     // ── RAPPORT CHAUFFEUR ──────────────────────────────────────────────────────
@@ -382,6 +418,32 @@ public class RapportsApiController {
                 details.add(r);
             }
         }
+
+        // ── Dépenses standalone ventilées par catégorie ──────────────────────────
+        // Carburant (fuel_filling), Péage (peage), Autres (depense_diverse)
+        java.math.BigDecimal totalPeage, totalCarburant, totalAutres;
+        if (chauffeurId == null) {
+            // Tous les chauffeurs : totaux globaux filtrés par période
+            totalPeage      = peageRepository.sumAllByPeriod(debut, fin);
+            totalCarburant  = pleinCarburantRepository.sumAllByPeriod(debut, fin);
+            totalAutres     = depenseDiverseRepository.sumAllByPeriod(debut, fin);
+        } else {
+            // Un chauffeur : filtrés par chauffeur + période
+            totalPeage      = peageRepository.sumByChauffeurAndPeriod(chauffeurId, debut, fin);
+            totalCarburant  = pleinCarburantRepository.sumByChauffeurAndPeriod(chauffeurId, debut, fin);
+            totalAutres     = depenseDiverseRepository.sumByChauffeurAndPeriod(chauffeurId, debut, fin);
+        }
+
+        if (totalPeage     == null) totalPeage     = java.math.BigDecimal.ZERO;
+        if (totalCarburant == null) totalCarburant = java.math.BigDecimal.ZERO;
+        if (totalAutres    == null) totalAutres    = java.math.BigDecimal.ZERO;
+
+        dto.setTotalPeage(totalPeage);
+        dto.setTotalCarburant(totalCarburant);
+        dto.setTotalAutres(totalAutres);
+
+        // totalDepense = dépenses missions + carburant + péage + autres
+        dto.setTotalDepense(dto.getTotalDepense().add(totalPeage).add(totalCarburant).add(totalAutres));
 
         dto.setTotalBenefice(dto.getTotalRevenu().subtract(dto.getTotalDepense()).subtract(dto.getTotalSalaire()));
         dto.setDetails(details);

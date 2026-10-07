@@ -128,4 +128,24 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
         WHERE p.mission.id = :missionId
     """)
     java.math.BigDecimal sumPeageByMissionId(@org.springframework.data.repository.query.Param("missionId") Long missionId);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COALESCE(SUM(p.amountTTC), 0)
+        FROM Peage p
+        WHERE p.datePassage BETWEEN :debut AND :fin
+    """)
+    java.math.BigDecimal sumAllByPeriod(
+            @org.springframework.data.repository.query.Param("debut") java.time.LocalDateTime debut,
+            @org.springframework.data.repository.query.Param("fin") java.time.LocalDateTime fin);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COALESCE(SUM(p.amountTTC), 0)
+        FROM Peage p
+        WHERE p.chauffeur.id = :chauffeurId
+        AND p.datePassage BETWEEN :debut AND :fin
+    """)
+    java.math.BigDecimal sumByChauffeurAndPeriod(
+            @org.springframework.data.repository.query.Param("chauffeurId") Long chauffeurId,
+            @org.springframework.data.repository.query.Param("debut") java.time.LocalDateTime debut,
+            @org.springframework.data.repository.query.Param("fin") java.time.LocalDateTime fin);
 }

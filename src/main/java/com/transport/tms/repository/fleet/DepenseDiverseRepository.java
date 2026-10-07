@@ -51,4 +51,24 @@ public interface DepenseDiverseRepository extends JpaRepository<DepenseDiverse, 
             @Param("filterVehicule") boolean filterVehicule,
             @Param("chauffeurIds") List<Long> chauffeurIds,
             @Param("filterChauffeur") boolean filterChauffeur);
+
+    @Query("""
+        SELECT COALESCE(SUM(d.amountTTC), 0)
+        FROM DepenseDiverse d
+        WHERE d.dateDepense BETWEEN :debut AND :fin
+    """)
+    java.math.BigDecimal sumAllByPeriod(
+            @Param("debut") java.time.LocalDateTime debut,
+            @Param("fin") java.time.LocalDateTime fin);
+
+    @Query("""
+        SELECT COALESCE(SUM(d.amountTTC), 0)
+        FROM DepenseDiverse d
+        WHERE d.chauffeur.id = :chauffeurId
+        AND d.dateDepense BETWEEN :debut AND :fin
+    """)
+    java.math.BigDecimal sumByChauffeurAndPeriod(
+            @Param("chauffeurId") Long chauffeurId,
+            @Param("debut") java.time.LocalDateTime debut,
+            @Param("fin") java.time.LocalDateTime fin);
 }

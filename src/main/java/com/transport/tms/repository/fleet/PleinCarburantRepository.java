@@ -260,4 +260,24 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
         WHERE p.mission.id = :missionId
     """)
     java.math.BigDecimal sumCarburantByMissionId(@Param("missionId") Long missionId);
+
+    @Query("""
+        SELECT COALESCE(SUM(COALESCE(p.amountTTC, p.quantityLiters * p.pricePerLiter)), 0)
+        FROM PleinCarburant p
+        WHERE p.fillingDate BETWEEN :debut AND :fin
+    """)
+    BigDecimal sumAllByPeriod(
+            @Param("debut") LocalDateTime debut,
+            @Param("fin") LocalDateTime fin);
+
+    @Query("""
+        SELECT COALESCE(SUM(COALESCE(p.amountTTC, p.quantityLiters * p.pricePerLiter)), 0)
+        FROM PleinCarburant p
+        WHERE p.chauffeur.id = :chauffeurId
+        AND p.fillingDate BETWEEN :debut AND :fin
+    """)
+    BigDecimal sumByChauffeurAndPeriod(
+            @Param("chauffeurId") Long chauffeurId,
+            @Param("debut") LocalDateTime debut,
+            @Param("fin") LocalDateTime fin);
 }

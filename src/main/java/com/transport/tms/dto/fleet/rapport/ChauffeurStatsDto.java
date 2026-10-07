@@ -15,7 +15,10 @@ public class ChauffeurStatsDto {
 
     /** Totaux globaux sur la période */
     private BigDecimal totalRevenu      = BigDecimal.ZERO;
-    private BigDecimal totalDepense     = BigDecimal.ZERO;
+    private BigDecimal totalDepense     = BigDecimal.ZERO;  // total dépenses (toutes catégories)
+    private BigDecimal totalCarburant   = BigDecimal.ZERO;  // depuis fuel_filling
+    private BigDecimal totalPeage       = BigDecimal.ZERO;  // depuis peage
+    private BigDecimal totalAutres      = BigDecimal.ZERO;  // depuis depense_diverse
     private BigDecimal totalSalaire     = BigDecimal.ZERO;
     private BigDecimal totalBenefice    = BigDecimal.ZERO;
     private Long       totalMissions    = 0L;
