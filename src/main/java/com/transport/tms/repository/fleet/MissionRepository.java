@@ -35,7 +35,7 @@ public interface MissionRepository extends JpaRepository<Mission, Long>, JpaSpec
         LEFT JOIN FETCH m.chauffeurSlots cs
         LEFT JOIN FETCH cs.chauffeur c
         WHERE m.statut = com.transport.tms.domain.entity.fleet.Mission.StatutMission.COMPLETED
-        AND (COALESCE(m.actualReturn, m.plannedDeparture) BETWEEN :debut AND :fin)
+        AND (COALESCE(m.plannedDeparture, m.actualDeparture, m.actualReturn, m.createdAt) BETWEEN :debut AND :fin)
         AND (:filterVehicule = false OR v.id IN :vehiculeIds)
         AND (:filterChauffeur = false OR c.id IN :chauffeurIds)
     """)
