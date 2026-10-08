@@ -58,34 +58,46 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
             effectiveAmountTTC = request.quantityLiters().multiply(request.pricePerLiter()).setScale(2, java.math.RoundingMode.HALF_UP);
         }
 
-        // 1. Contrôle d'unicité prioritaire sur le numéro de ticket (avec normalisation)
+        // ─── Niveau 1 : Unicité sur le N° de ticket (priorité absolue, toutes véhicules/chauffeurs confondus) ───
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
             String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (pleinRepository.existsByReceiptNumber(cleanReceipt, normalizedReceipt)) {
                 throw new InvalidOperationException(
-                    "Ce ticket carburant a déjà été enregistré (N° " + cleanReceipt + "). Doublon refusé.");
+                    "Ce ticket carburant a déjà été enregistré (N° " + cleanReceipt + "). "
+                    + "Un doublon de ticket est interdit quel que soit le chauffeur ou le véhicule.");
             }
         }
 
-        // 2. Contrôle combiné strict (MÊME véhicule + MÊME date + MÊME montant TTC)
-        //    Ce contrôle s'exécute TOUJOURS pour bloquer les doublons même si le numéro de ticket est absent ou différent
-        if (request.vehiculeId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
-            if (pleinRepository.existsByVehiculeAndDateAndAmount(
-                    request.vehiculeId(), request.fillingDate(), effectiveAmountTTC)) {
+        // ─── Niveau 2 : Même date+heure exacte + même véhicule + même quantité (toutes chauffeurs confondus) ───
+        if (request.vehiculeId() != null && request.fillingDate() != null && request.quantityLiters() != null) {
+            if (pleinRepository.existsByVehiculeAndDateHeureAndQuantite(
+                    request.vehiculeId(), request.fillingDate(), request.quantityLiters())) {
                 throw new InvalidOperationException(
-                    "Un plein similaire existe déjà pour ce véhicule à cette date avec le montant ("
-                    + effectiveAmountTTC + " €). Doublon refusé.");
-            }
-        } else if (request.chauffeurId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
-            if (pleinRepository.existsByChauffeurAndDateAndAmount(
-                    request.chauffeurId(), request.fillingDate(), effectiveAmountTTC)) {
-                throw new InvalidOperationException(
-                    "Un plein similaire existe déjà pour ce chauffeur à cette date avec le montant ("
-                    + effectiveAmountTTC + " €). Doublon refusé.");
+                    "Un plein carburant avec la même date/heure (" + request.fillingDate()
+                    + "), le même véhicule et la même quantité (" + request.quantityLiters()
+                    + " L) existe déjà. Doublon refusé quel que soit le chauffeur.");
             }
         }
 
+        // ─── Niveau 3 : Fallback – même véhicule/chauffeur + même jour + même montant TTC (quand pas de N° ticket) ───
+        if (request.receiptNumber() == null || request.receiptNumber().isBlank()) {
+            if (request.vehiculeId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
+                if (pleinRepository.existsByVehiculeAndDateAndAmount(
+                        request.vehiculeId(), request.fillingDate(), effectiveAmountTTC)) {
+                    throw new InvalidOperationException(
+                        "Un plein similaire sans N° de ticket existe déjà pour ce véhicule à cette date avec le montant ("
+                        + effectiveAmountTTC + " €). Doublon refusé.");
+                }
+            } else if (request.chauffeurId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
+                if (pleinRepository.existsByChauffeurAndDateAndAmount(
+                        request.chauffeurId(), request.fillingDate(), effectiveAmountTTC)) {
+                    throw new InvalidOperationException(
+                        "Un plein similaire sans N° de ticket existe déjà pour ce chauffeur à cette date avec le montant ("
+                        + effectiveAmountTTC + " €). Doublon refusé.");
+                }
+            }
+        }
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
                 .orElseThrow(() -> new EntityNotFoundException(
@@ -145,31 +157,48 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
             effectiveAmountTTC = request.quantityLiters().multiply(request.pricePerLiter()).setScale(2, java.math.RoundingMode.HALF_UP);
         }
 
+        // ─── Niveau 1 : Unicité sur le N° de ticket (priorité absolue, toutes véhicules/chauffeurs confondus) ───
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
             String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (pleinRepository.existsByReceiptNumberAndIdNot(cleanReceipt, normalizedReceipt, id)) {
-                throw new InvalidOperationException("Un plein avec ce numéro de justificatif (" + cleanReceipt + ") existe déjà.");
+                throw new InvalidOperationException("Un plein avec ce numéro de ticket (" + cleanReceipt + ") existe déjà. "
+                    + "Un doublon de ticket est interdit quel que soit le chauffeur ou le véhicule.");
             }
         }
 
-        if (request.vehiculeId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
-            if (pleinRepository.existsByVehiculeAndDateAndAmountAndIdNot(
-                    request.vehiculeId(), request.fillingDate(), effectiveAmountTTC, id)) {
+        // ─── Niveau 2 : Même date+heure exacte + même véhicule + même quantité (toutes chauffeurs confondus) ───
+        if (request.vehiculeId() != null && request.fillingDate() != null && request.quantityLiters() != null) {
+            if (pleinRepository.existsByVehiculeAndDateHeureAndQuantiteAndIdNot(
+                    request.vehiculeId(), request.fillingDate(), request.quantityLiters(), id)) {
                 throw new InvalidOperationException(
-                    "Un plein similaire existe déjà pour ce véhicule à cette date avec le montant ("
-                    + effectiveAmountTTC + " €).");
+                    "Un plein carburant avec la même date/heure (" + request.fillingDate()
+                    + "), le même véhicule et la même quantité (" + request.quantityLiters()
+                    + " L) existe déjà. Doublon refusé quel que soit le chauffeur.");
             }
-        } else if (request.chauffeurId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
-            if (pleinRepository.existsByChauffeurAndDateAndAmountAndIdNot(
-                    request.chauffeurId(), request.fillingDate(), effectiveAmountTTC, id)) {
-                throw new InvalidOperationException(
-                    "Un plein similaire existe déjà pour ce chauffeur à cette date avec le montant ("
-                    + effectiveAmountTTC + " €).");
+        }
+
+        // ─── Niveau 3 : Fallback – même véhicule/chauffeur + même jour + même montant TTC ───
+        if (request.receiptNumber() == null || request.receiptNumber().isBlank()) {
+            if (request.vehiculeId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
+                if (pleinRepository.existsByVehiculeAndDateAndAmountAndIdNot(
+                        request.vehiculeId(), request.fillingDate(), effectiveAmountTTC, id)) {
+                    throw new InvalidOperationException(
+                        "Un plein similaire existe déjà pour ce véhicule à cette date avec le montant ("
+                        + effectiveAmountTTC + " €).");
+                }
+            } else if (request.chauffeurId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
+                if (pleinRepository.existsByChauffeurAndDateAndAmountAndIdNot(
+                        request.chauffeurId(), request.fillingDate(), effectiveAmountTTC, id)) {
+                    throw new InvalidOperationException(
+                        "Un plein similaire existe déjà pour ce chauffeur à cette date avec le montant ("
+                        + effectiveAmountTTC + " €).");
+                }
             }
         }
 
         PleinCarburant plein = findEntityById(id);
+
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
                 .orElseThrow(() -> new EntityNotFoundException(

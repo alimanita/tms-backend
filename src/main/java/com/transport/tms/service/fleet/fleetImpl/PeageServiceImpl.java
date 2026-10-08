@@ -169,23 +169,40 @@ public class PeageServiceImpl implements PeageService {
     @Override
     @Transactional
     public PeageResponse create(PeageRequest request, MultipartFile proof) {
-        // 1. Contrôle d'unicité prioritaire sur la référence / numéro du ticket (avec normalisation)
+        // ─── Niveau 1 : Unicité sur le N° de ticket (priorité absolue, toutes véhicules/chauffeurs confondus) ───
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
             String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (peageRepository.existsByReceiptNumber(cleanReceipt, normalizedReceipt)) {
                 throw new com.transport.tms.exception.InvalidOperationException(
-                    "Ce ticket de péage a déjà été enregistré (N° " + cleanReceipt + "). Doublon refusé.");
+                    "Ce ticket de péage a déjà été enregistré (N° " + cleanReceipt + "). "
+                    + "Un doublon de ticket est interdit quel que soit le chauffeur ou le véhicule.");
             }
         }
 
-        // 2. Contrôle combiné strict : même véhicule + même jour + même montant TTC = doublon refusé
-        if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
-            if (peageRepository.existsByVehiculeAndDateAndAmount(
-                    request.vehiculeId(), request.datePassage(), request.amountTTC())) {
+        // ─── Niveau 2 : Même date+heure exacte + même gare entrée + même gare sortie (toutes véhicules/chauffeurs confondus) ───
+        if (request.datePassage() != null
+                && (request.gareEntree() != null || request.gareSortie() != null)) {
+            if (peageRepository.existsByDateHeureAndGares(
+                    request.datePassage(), request.gareEntree(), request.gareSortie())) {
                 throw new com.transport.tms.exception.InvalidOperationException(
-                    "Un péage similaire existe déjà pour ce véhicule à cette date avec le montant ("
-                    + request.amountTTC() + " €). Doublon refusé.");
+                    "Un ticket de péage avec la même date/heure ("
+                    + request.datePassage() + "), la même gare d'entrée ("
+                    + (request.gareEntree() != null ? request.gareEntree() : "—") + ") et la même gare de sortie ("
+                    + (request.gareSortie() != null ? request.gareSortie() : "—")
+                    + ") existe déjà. Doublon refusé quel que soit le chauffeur ou le véhicule.");
+            }
+        }
+
+        // ─── Niveau 3 : Fallback – même véhicule + même jour + même montant TTC (quand pas de N° ticket ni de gares) ───
+        if (request.receiptNumber() == null || request.receiptNumber().isBlank()) {
+            if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
+                if (peageRepository.existsByVehiculeAndDateAndAmount(
+                        request.vehiculeId(), request.datePassage(), request.amountTTC())) {
+                    throw new com.transport.tms.exception.InvalidOperationException(
+                        "Un péage similaire sans N° de ticket existe déjà pour ce véhicule à cette date avec le montant ("
+                        + request.amountTTC() + " €). Doublon refusé.");
+                }
             }
         }
 
@@ -221,21 +238,40 @@ public class PeageServiceImpl implements PeageService {
     @Override
     @Transactional
     public PeageResponse update(Long id, PeageRequest request, MultipartFile proof) {
+        // ─── Niveau 1 : Unicité sur le N° de ticket (priorité absolue, toutes véhicules/chauffeurs confondus) ───
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
             String cleanReceipt = request.receiptNumber().trim();
             String normalizedReceipt = cleanReceipt.replaceAll("[\\s\\-_/]+", "").toUpperCase();
             if (peageRepository.existsByReceiptNumberAndIdNot(cleanReceipt, normalizedReceipt, id)) {
                 throw new com.transport.tms.exception.InvalidOperationException(
-                    "Un péage avec ce numéro de justificatif (" + request.receiptNumber() + ") existe déjà.");
+                    "Un péage avec ce numéro de ticket (" + request.receiptNumber() + ") existe déjà. "
+                    + "Un doublon de ticket est interdit quel que soit le chauffeur ou le véhicule.");
             }
         }
 
-        if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
-            if (peageRepository.existsByVehiculeAndDateAndAmountAndIdNot(
-                    request.vehiculeId(), request.datePassage(), request.amountTTC(), id)) {
+        // ─── Niveau 2 : Même date+heure exacte + même gare entrée + même gare sortie ───
+        if (request.datePassage() != null
+                && (request.gareEntree() != null || request.gareSortie() != null)) {
+            if (peageRepository.existsByDateHeureAndGaresAndIdNot(
+                    request.datePassage(), request.gareEntree(), request.gareSortie(), id)) {
                 throw new com.transport.tms.exception.InvalidOperationException(
-                    "Un péage similaire existe déjà pour ce véhicule à cette date avec le montant ("
-                    + request.amountTTC() + " €).");
+                    "Un ticket de péage avec la même date/heure ("
+                    + request.datePassage() + "), la même gare d'entrée ("
+                    + (request.gareEntree() != null ? request.gareEntree() : "—") + ") et la même gare de sortie ("
+                    + (request.gareSortie() != null ? request.gareSortie() : "—")
+                    + ") existe déjà. Doublon refusé quel que soit le chauffeur ou le véhicule.");
+            }
+        }
+
+        // ─── Niveau 3 : Fallback – même véhicule + même jour + même montant TTC ───
+        if (request.receiptNumber() == null || request.receiptNumber().isBlank()) {
+            if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
+                if (peageRepository.existsByVehiculeAndDateAndAmountAndIdNot(
+                        request.vehiculeId(), request.datePassage(), request.amountTTC(), id)) {
+                    throw new com.transport.tms.exception.InvalidOperationException(
+                        "Un péage similaire sans N° de ticket existe déjà pour ce véhicule à cette date avec le montant ("
+                        + request.amountTTC() + " €).");
+                }
             }
         }
 

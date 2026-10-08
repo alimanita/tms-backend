@@ -76,6 +76,30 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
             @Param("fillingDate") LocalDateTime fillingDate,
             @Param("amountTTC") java.math.BigDecimal amountTTC,
             @Param("id") Long id);
+    // ── Doublon strict : même date+heure exacte + même véhicule + même quantité ─
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.vehicule.id = :vehiculeId
+        AND p.fillingDate = :fillingDate
+        AND p.quantityLiters = :quantityLiters
+    """)
+    boolean existsByVehiculeAndDateHeureAndQuantite(
+            @Param("vehiculeId") Long vehiculeId,
+            @Param("fillingDate") LocalDateTime fillingDate,
+            @Param("quantityLiters") java.math.BigDecimal quantityLiters);
+
+    @Query("""
+        SELECT COUNT(p) > 0 FROM PleinCarburant p
+        WHERE p.vehicule.id = :vehiculeId
+        AND p.fillingDate = :fillingDate
+        AND p.quantityLiters = :quantityLiters
+        AND p.id <> :id
+    """)
+    boolean existsByVehiculeAndDateHeureAndQuantiteAndIdNot(
+            @Param("vehiculeId") Long vehiculeId,
+            @Param("fillingDate") LocalDateTime fillingDate,
+            @Param("quantityLiters") java.math.BigDecimal quantityLiters,
+            @Param("id") Long id);
 
     // ── Fallback : même véhicule + même jour + même montant TTC ────────────────
     @Query("""

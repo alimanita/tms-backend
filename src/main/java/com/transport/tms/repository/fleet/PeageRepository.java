@@ -75,6 +75,43 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
             @org.springframework.data.repository.query.Param("amountTTC") java.math.BigDecimal amountTTC,
             @org.springframework.data.repository.query.Param("id") Long id);
 
+    // ── Doublon par date+heure exacte + même gare entrée + même gare sortie ───
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(p) > 0 FROM Peage p
+        WHERE p.datePassage = :datePassage
+        AND (
+            (:gareEntree IS NULL AND p.gareEntree IS NULL)
+            OR UPPER(TRIM(p.gareEntree)) = UPPER(TRIM(:gareEntree))
+        )
+        AND (
+            (:gareSortie IS NULL AND p.gareSortie IS NULL)
+            OR UPPER(TRIM(p.gareSortie)) = UPPER(TRIM(:gareSortie))
+        )
+    """)
+    boolean existsByDateHeureAndGares(
+            @org.springframework.data.repository.query.Param("datePassage") java.time.LocalDateTime datePassage,
+            @org.springframework.data.repository.query.Param("gareEntree") String gareEntree,
+            @org.springframework.data.repository.query.Param("gareSortie") String gareSortie);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(p) > 0 FROM Peage p
+        WHERE p.datePassage = :datePassage
+        AND (
+            (:gareEntree IS NULL AND p.gareEntree IS NULL)
+            OR UPPER(TRIM(p.gareEntree)) = UPPER(TRIM(:gareEntree))
+        )
+        AND (
+            (:gareSortie IS NULL AND p.gareSortie IS NULL)
+            OR UPPER(TRIM(p.gareSortie)) = UPPER(TRIM(:gareSortie))
+        )
+        AND p.id <> :id
+    """)
+    boolean existsByDateHeureAndGaresAndIdNot(
+            @org.springframework.data.repository.query.Param("datePassage") java.time.LocalDateTime datePassage,
+            @org.springframework.data.repository.query.Param("gareEntree") String gareEntree,
+            @org.springframework.data.repository.query.Param("gareSortie") String gareSortie,
+            @org.springframework.data.repository.query.Param("id") Long id);
+
 
     // ── Filtrage paginé ─────────────────────────────────────────────────────────
     @org.springframework.data.jpa.repository.Query("""
