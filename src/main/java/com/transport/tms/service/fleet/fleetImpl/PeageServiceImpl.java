@@ -195,7 +195,9 @@ public class PeageServiceImpl implements PeageService {
         }
 
         // ─── Niveau 3 : Fallback – même véhicule + même jour + même montant TTC (quand pas de N° ticket ni de gares) ───
-        if (request.receiptNumber() == null || request.receiptNumber().isBlank()) {
+        if ((request.receiptNumber() == null || request.receiptNumber().isBlank())
+                && (request.gareEntree() == null || request.gareEntree().isBlank())
+                && (request.gareSortie() == null || request.gareSortie().isBlank())) {
             if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
                 if (peageRepository.existsByVehiculeAndDateAndAmount(
                         request.vehiculeId(), request.datePassage(), request.amountTTC())) {
@@ -263,8 +265,10 @@ public class PeageServiceImpl implements PeageService {
             }
         }
 
-        // ─── Niveau 3 : Fallback – même véhicule + même jour + même montant TTC ───
-        if (request.receiptNumber() == null || request.receiptNumber().isBlank()) {
+        // ─── Niveau 3 : Fallback – même véhicule + même jour + même montant TTC (quand pas de N° ticket ni de gares) ───
+        if ((request.receiptNumber() == null || request.receiptNumber().isBlank())
+                && (request.gareEntree() == null || request.gareEntree().isBlank())
+                && (request.gareSortie() == null || request.gareSortie().isBlank())) {
             if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
                 if (peageRepository.existsByVehiculeAndDateAndAmountAndIdNot(
                         request.vehiculeId(), request.datePassage(), request.amountTTC(), id)) {
