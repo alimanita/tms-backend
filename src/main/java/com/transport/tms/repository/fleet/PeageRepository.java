@@ -81,11 +81,11 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
         WHERE p.datePassage = :datePassage
         AND (
             (:gareEntree IS NULL AND p.gareEntree IS NULL)
-            OR UPPER(TRIM(p.gareEntree)) = UPPER(TRIM(:gareEntree))
+            OR (:gareEntree IS NOT NULL AND p.gareEntree IS NOT NULL AND UPPER(TRIM(p.gareEntree)) = :gareEntree)
         )
         AND (
             (:gareSortie IS NULL AND p.gareSortie IS NULL)
-            OR UPPER(TRIM(p.gareSortie)) = UPPER(TRIM(:gareSortie))
+            OR (:gareSortie IS NOT NULL AND p.gareSortie IS NOT NULL AND UPPER(TRIM(p.gareSortie)) = :gareSortie)
         )
     """)
     boolean existsByDateHeureAndGares(
@@ -98,11 +98,11 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
         WHERE p.datePassage = :datePassage
         AND (
             (:gareEntree IS NULL AND p.gareEntree IS NULL)
-            OR UPPER(TRIM(p.gareEntree)) = UPPER(TRIM(:gareEntree))
+            OR (:gareEntree IS NOT NULL AND p.gareEntree IS NOT NULL AND UPPER(TRIM(p.gareEntree)) = :gareEntree)
         )
         AND (
             (:gareSortie IS NULL AND p.gareSortie IS NULL)
-            OR UPPER(TRIM(p.gareSortie)) = UPPER(TRIM(:gareSortie))
+            OR (:gareSortie IS NOT NULL AND p.gareSortie IS NOT NULL AND UPPER(TRIM(p.gareSortie)) = :gareSortie)
         )
         AND p.id <> :id
     """)
@@ -111,6 +111,7 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
             @org.springframework.data.repository.query.Param("gareEntree") String gareEntree,
             @org.springframework.data.repository.query.Param("gareSortie") String gareSortie,
             @org.springframework.data.repository.query.Param("id") Long id);
+
 
 
     // ── Filtrage paginé ─────────────────────────────────────────────────────────

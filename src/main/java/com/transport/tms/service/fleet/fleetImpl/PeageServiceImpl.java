@@ -182,9 +182,15 @@ public class PeageServiceImpl implements PeageService {
 
         // ─── Niveau 2 : Même date+heure exacte + même gare entrée + même gare sortie (toutes véhicules/chauffeurs confondus) ───
         if (request.datePassage() != null
-                && (request.gareEntree() != null || request.gareSortie() != null)) {
+                && ((request.gareEntree() != null && !request.gareEntree().isBlank())
+                    || (request.gareSortie() != null && !request.gareSortie().isBlank()))) {
+            String normEntree = (request.gareEntree() != null && !request.gareEntree().isBlank())
+                    ? request.gareEntree().trim().toUpperCase() : null;
+            String normSortie = (request.gareSortie() != null && !request.gareSortie().isBlank())
+                    ? request.gareSortie().trim().toUpperCase() : null;
+
             if (peageRepository.existsByDateHeureAndGares(
-                    request.datePassage(), request.gareEntree(), request.gareSortie())) {
+                    request.datePassage(), normEntree, normSortie)) {
                 throw new com.transport.tms.exception.InvalidOperationException(
                     "Un ticket de péage avec la même date/heure ("
                     + request.datePassage() + "), la même gare d'entrée ("
@@ -253,9 +259,15 @@ public class PeageServiceImpl implements PeageService {
 
         // ─── Niveau 2 : Même date+heure exacte + même gare entrée + même gare sortie ───
         if (request.datePassage() != null
-                && (request.gareEntree() != null || request.gareSortie() != null)) {
+                && ((request.gareEntree() != null && !request.gareEntree().isBlank())
+                    || (request.gareSortie() != null && !request.gareSortie().isBlank()))) {
+            String normEntree = (request.gareEntree() != null && !request.gareEntree().isBlank())
+                    ? request.gareEntree().trim().toUpperCase() : null;
+            String normSortie = (request.gareSortie() != null && !request.gareSortie().isBlank())
+                    ? request.gareSortie().trim().toUpperCase() : null;
+
             if (peageRepository.existsByDateHeureAndGaresAndIdNot(
-                    request.datePassage(), request.gareEntree(), request.gareSortie(), id)) {
+                    request.datePassage(), normEntree, normSortie, id)) {
                 throw new com.transport.tms.exception.InvalidOperationException(
                     "Un ticket de péage avec la même date/heure ("
                     + request.datePassage() + "), la même gare d'entrée ("
