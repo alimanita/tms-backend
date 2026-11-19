@@ -184,13 +184,15 @@ public class PeageServiceImpl implements PeageService {
         if (request.datePassage() != null
                 && ((request.gareEntree() != null && !request.gareEntree().isBlank())
                     || (request.gareSortie() != null && !request.gareSortie().isBlank()))) {
+            java.time.LocalDateTime dateMin = request.datePassage().truncatedTo(java.time.temporal.ChronoUnit.MINUTES);
+            java.time.LocalDateTime dateMax = dateMin.plusMinutes(1);
             String normEntree = (request.gareEntree() != null && !request.gareEntree().isBlank())
                     ? request.gareEntree().trim().toUpperCase() : null;
             String normSortie = (request.gareSortie() != null && !request.gareSortie().isBlank())
                     ? request.gareSortie().trim().toUpperCase() : null;
 
             if (peageRepository.existsByDateHeureAndGares(
-                    request.datePassage(), normEntree, normSortie)) {
+                    dateMin, dateMax, normEntree, normSortie)) {
                 throw new com.transport.tms.exception.InvalidOperationException(
                     "Un ticket de péage avec la même date/heure ("
                     + request.datePassage() + "), la même gare d'entrée ("
@@ -254,40 +256,6 @@ public class PeageServiceImpl implements PeageService {
                 throw new com.transport.tms.exception.InvalidOperationException(
                     "Un péage avec ce numéro de ticket (" + request.receiptNumber() + ") existe déjà. "
                     + "Un doublon de ticket est interdit quel que soit le chauffeur ou le véhicule.");
-            }
-        }
-
-        // ─── Niveau 2 : Même date+heure exacte + même gare entrée + même gare sortie ───
-        if (request.datePassage() != null
-                && ((request.gareEntree() != null && !request.gareEntree().isBlank())
-                    || (request.gareSortie() != null && !request.gareSortie().isBlank()))) {
-            String normEntree = (request.gareEntree() != null && !request.gareEntree().isBlank())
-                    ? request.gareEntree().trim().toUpperCase() : null;
-            String normSortie = (request.gareSortie() != null && !request.gareSortie().isBlank())
-                    ? request.gareSortie().trim().toUpperCase() : null;
-
-            if (peageRepository.existsByDateHeureAndGaresAndIdNot(
-                    request.datePassage(), normEntree, normSortie, id)) {
-                throw new com.transport.tms.exception.InvalidOperationException(
-                    "Un ticket de péage avec la même date/heure ("
-                    + request.datePassage() + "), la même gare d'entrée ("
-                    + (request.gareEntree() != null ? request.gareEntree() : "—") + ") et la même gare de sortie ("
-                    + (request.gareSortie() != null ? request.gareSortie() : "—")
-                    + ") existe déjà. Doublon refusé quel que soit le chauffeur ou le véhicule.");
-            }
-        }
-
-        // ─── Niveau 3 : Fallback – même véhicule + même jour + même montant TTC (quand pas de N° ticket ni de gares) ───
-        if ((request.receiptNumber() == null || request.receiptNumber().isBlank())
-                && (request.gareEntree() == null || request.gareEntree().isBlank())
-                && (request.gareSortie() == null || request.gareSortie().isBlank())) {
-            if (request.vehiculeId() != null && request.datePassage() != null && request.amountTTC() != null) {
-                if (peageRepository.existsByVehiculeAndDateAndAmountAndIdNot(
-                        request.vehiculeId(), request.datePassage(), request.amountTTC(), id)) {
-                    throw new com.transport.tms.exception.InvalidOperationException(
-                        "Un péage similaire sans N° de ticket existe déjà pour ce véhicule à cette date avec le montant ("
-                        + request.amountTTC() + " €).");
-                }
             }
         }
 

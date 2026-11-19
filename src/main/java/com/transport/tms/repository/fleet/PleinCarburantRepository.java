@@ -80,26 +80,29 @@ public interface PleinCarburantRepository extends JpaRepository<PleinCarburant, 
     @Query("""
         SELECT COUNT(p) > 0 FROM PleinCarburant p
         WHERE p.vehicule.id = :vehiculeId
-        AND p.fillingDate = :fillingDate
-        AND p.quantityLiters = :quantityLiters
+        AND p.fillingDate >= :fillingDateMin AND p.fillingDate < :fillingDateMax
+        AND ABS(p.quantityLiters - :quantityLiters) < 0.001
     """)
     boolean existsByVehiculeAndDateHeureAndQuantite(
             @Param("vehiculeId") Long vehiculeId,
-            @Param("fillingDate") LocalDateTime fillingDate,
+            @Param("fillingDateMin") LocalDateTime fillingDateMin,
+            @Param("fillingDateMax") LocalDateTime fillingDateMax,
             @Param("quantityLiters") java.math.BigDecimal quantityLiters);
 
     @Query("""
         SELECT COUNT(p) > 0 FROM PleinCarburant p
         WHERE p.vehicule.id = :vehiculeId
-        AND p.fillingDate = :fillingDate
-        AND p.quantityLiters = :quantityLiters
+        AND p.fillingDate >= :fillingDateMin AND p.fillingDate < :fillingDateMax
+        AND ABS(p.quantityLiters - :quantityLiters) < 0.001
         AND p.id <> :id
     """)
     boolean existsByVehiculeAndDateHeureAndQuantiteAndIdNot(
             @Param("vehiculeId") Long vehiculeId,
-            @Param("fillingDate") LocalDateTime fillingDate,
+            @Param("fillingDateMin") LocalDateTime fillingDateMin,
+            @Param("fillingDateMax") LocalDateTime fillingDateMax,
             @Param("quantityLiters") java.math.BigDecimal quantityLiters,
             @Param("id") Long id);
+
 
     // ── Fallback : même véhicule + même jour + même montant TTC ────────────────
     @Query("""

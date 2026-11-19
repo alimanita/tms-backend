@@ -78,7 +78,7 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
     // ── Doublon par date+heure exacte + même gare entrée + même gare sortie ───
     @org.springframework.data.jpa.repository.Query("""
         SELECT COUNT(p) > 0 FROM Peage p
-        WHERE p.datePassage = :datePassage
+        WHERE p.datePassage >= :dateMin AND p.datePassage < :dateMax
         AND (
             (:gareEntree IS NULL AND p.gareEntree IS NULL)
             OR (:gareEntree IS NOT NULL AND p.gareEntree IS NOT NULL AND UPPER(TRIM(p.gareEntree)) = :gareEntree)
@@ -89,13 +89,14 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
         )
     """)
     boolean existsByDateHeureAndGares(
-            @org.springframework.data.repository.query.Param("datePassage") java.time.LocalDateTime datePassage,
+            @org.springframework.data.repository.query.Param("dateMin") java.time.LocalDateTime dateMin,
+            @org.springframework.data.repository.query.Param("dateMax") java.time.LocalDateTime dateMax,
             @org.springframework.data.repository.query.Param("gareEntree") String gareEntree,
             @org.springframework.data.repository.query.Param("gareSortie") String gareSortie);
 
     @org.springframework.data.jpa.repository.Query("""
         SELECT COUNT(p) > 0 FROM Peage p
-        WHERE p.datePassage = :datePassage
+        WHERE p.datePassage >= :dateMin AND p.datePassage < :dateMax
         AND (
             (:gareEntree IS NULL AND p.gareEntree IS NULL)
             OR (:gareEntree IS NOT NULL AND p.gareEntree IS NOT NULL AND UPPER(TRIM(p.gareEntree)) = :gareEntree)
@@ -107,11 +108,11 @@ public interface PeageRepository extends JpaRepository<Peage, Long>, JpaSpecific
         AND p.id <> :id
     """)
     boolean existsByDateHeureAndGaresAndIdNot(
-            @org.springframework.data.repository.query.Param("datePassage") java.time.LocalDateTime datePassage,
+            @org.springframework.data.repository.query.Param("dateMin") java.time.LocalDateTime dateMin,
+            @org.springframework.data.repository.query.Param("dateMax") java.time.LocalDateTime dateMax,
             @org.springframework.data.repository.query.Param("gareEntree") String gareEntree,
             @org.springframework.data.repository.query.Param("gareSortie") String gareSortie,
             @org.springframework.data.repository.query.Param("id") Long id);
-
 
 
     // ── Filtrage paginé ─────────────────────────────────────────────────────────

@@ -71,8 +71,11 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
 
         // ─── Niveau 2 : Même date+heure exacte + même véhicule + même quantité (toutes chauffeurs confondus) ───
         if (request.vehiculeId() != null && request.fillingDate() != null && request.quantityLiters() != null) {
+            java.time.LocalDateTime dateMin = request.fillingDate().truncatedTo(java.time.temporal.ChronoUnit.MINUTES);
+            java.time.LocalDateTime dateMax = dateMin.plusMinutes(1);
+            BigDecimal normalizedQty = request.quantityLiters().setScale(3, java.math.RoundingMode.HALF_UP);
             if (pleinRepository.existsByVehiculeAndDateHeureAndQuantite(
-                    request.vehiculeId(), request.fillingDate(), request.quantityLiters())) {
+                    request.vehiculeId(), dateMin, dateMax, normalizedQty)) {
                 throw new InvalidOperationException(
                     "Un plein carburant avec la même date/heure (" + request.fillingDate()
                     + "), le même véhicule et la même quantité (" + request.quantityLiters()
@@ -152,10 +155,6 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
 
     @Override
     public PleinCarburantResponse update(Long id, PleinCarburantRequest request, MultipartFile proof) {
-        BigDecimal effectiveAmountTTC = request.amountTTC();
-        if (effectiveAmountTTC == null && request.quantityLiters() != null && request.pricePerLiter() != null) {
-            effectiveAmountTTC = request.quantityLiters().multiply(request.pricePerLiter()).setScale(2, java.math.RoundingMode.HALF_UP);
-        }
 
         // ─── Niveau 1 : Unicité sur le N° de ticket (priorité absolue, toutes véhicules/chauffeurs confondus) ───
         if (request.receiptNumber() != null && !request.receiptNumber().isBlank()) {
@@ -167,37 +166,7 @@ public class PleinCarburantServiceImpl implements PleinCarburantService {
             }
         }
 
-        // ─── Niveau 2 : Même date+heure exacte + même véhicule + même quantité (toutes chauffeurs confondus) ───
-        if (request.vehiculeId() != null && request.fillingDate() != null && request.quantityLiters() != null) {
-            if (pleinRepository.existsByVehiculeAndDateHeureAndQuantiteAndIdNot(
-                    request.vehiculeId(), request.fillingDate(), request.quantityLiters(), id)) {
-                throw new InvalidOperationException(
-                    "Un plein carburant avec la même date/heure (" + request.fillingDate()
-                    + "), le même véhicule et la même quantité (" + request.quantityLiters()
-                    + " L) existe déjà. Doublon refusé quel que soit le chauffeur.");
-            }
-        }
-
-        // ─── Niveau 3 : Fallback – même véhicule/chauffeur + même jour + même montant TTC ───
-        if (request.receiptNumber() == null || request.receiptNumber().isBlank()) {
-            if (request.vehiculeId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
-                if (pleinRepository.existsByVehiculeAndDateAndAmountAndIdNot(
-                        request.vehiculeId(), request.fillingDate(), effectiveAmountTTC, id)) {
-                    throw new InvalidOperationException(
-                        "Un plein similaire existe déjà pour ce véhicule à cette date avec le montant ("
-                        + effectiveAmountTTC + " €).");
-                }
-            } else if (request.chauffeurId() != null && request.fillingDate() != null && effectiveAmountTTC != null) {
-                if (pleinRepository.existsByChauffeurAndDateAndAmountAndIdNot(
-                        request.chauffeurId(), request.fillingDate(), effectiveAmountTTC, id)) {
-                    throw new InvalidOperationException(
-                        "Un plein similaire existe déjà pour ce chauffeur à cette date avec le montant ("
-                        + effectiveAmountTTC + " €).");
-                }
-            }
-        }
-
-        PleinCarburant plein = findEntityById(id);
+                PleinCarburant plein = findEntityById(id);
 
 
         Vehicule vehicule = vehiculeRepository.findById(request.vehiculeId())
