@@ -16,9 +16,11 @@ FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # Libs nécessaires pour OpenCV/JavaCV en runtime
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 \
-    ffmpeg \
+# (miroir fr.archive.ubuntu.com car archive/security.ubuntu.com sont bloqués en HTTP sur ce VPS)
+RUN sed -i 's|http://archive.ubuntu.com|http://fr.archive.ubuntu.com|g; s|http://security.ubuntu.com|http://fr.archive.ubuntu.com|g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true \
+    && apt-get update && apt-get install -y --no-install-recommends \
+       libgomp1 \
+       ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r spring && useradd -r -g spring spring \
