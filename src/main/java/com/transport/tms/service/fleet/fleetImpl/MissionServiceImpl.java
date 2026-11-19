@@ -82,6 +82,11 @@ public class MissionServiceImpl implements MissionService {
     }
     @Override
     public MissionResponse create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
+        return create(request, letter, null);
+    }
+
+    @Override
+    public MissionResponse create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter, org.springframework.web.multipart.MultipartFile cmr) {
         if (missionRepository.existsByTitle(request.title())) {
             throw new InvalidOperationException("Une mission avec ce titre existe déjà");
         }
@@ -97,11 +102,21 @@ public class MissionServiceImpl implements MissionService {
             mission.setLetterMissionPath(filePath);
         }
 
+        if (cmr != null && !cmr.isEmpty()) {
+            String filePath = fileStorageService.store(cmr);
+            mission.setCmrPath(filePath);
+        }
+
         return mapper.toResponse(missionRepository.save(mission));
     }
 
     @Override
     public MissionResponse update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
+        return update(id, request, letter, null);
+    }
+
+    @Override
+    public MissionResponse update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter, org.springframework.web.multipart.MultipartFile cmr) {
         Mission mission = findEntityById(id);
         if (mission.getStatut() != Mission.StatutMission.PLANNED) {
             throw new InvalidOperationException("Une mission ne peut être modifiée qu'en statut PLANNED");
@@ -123,6 +138,11 @@ public class MissionServiceImpl implements MissionService {
             mission.setLetterMissionPath(filePath);
         }
 
+        if (cmr != null && !cmr.isEmpty()) {
+            String filePath = fileStorageService.store(cmr);
+            mission.setCmrPath(filePath);
+        }
+
         return mapper.toResponse(missionRepository.save(mission));
     }
 
@@ -135,6 +155,16 @@ public class MissionServiceImpl implements MissionService {
         if (file != null && !file.isEmpty()) {
             String filePath = fileStorageService.store(file);
             mission.setLetterMissionPath(filePath);
+        }
+        return mapper.toResponse(missionRepository.save(mission));
+    }
+
+    @Override
+    public MissionResponse uploadCmr(Long id, org.springframework.web.multipart.MultipartFile file) {
+        Mission mission = findEntityById(id);
+        if (file != null && !file.isEmpty()) {
+            String filePath = fileStorageService.store(file);
+            mission.setCmrPath(filePath);
         }
         return mapper.toResponse(missionRepository.save(mission));
     }
@@ -288,6 +318,15 @@ public class MissionServiceImpl implements MissionService {
             throw new EntityNotFoundException("Aucune lettre de mission attachée à cette mission");
         }
         return fileStorageService.load(mission.getLetterMissionPath());
+    }
+
+    @Override
+    public org.springframework.core.io.Resource getCmr(Long id) {
+        Mission mission = findEntityById(id);
+        if (mission.getCmrPath() == null || mission.getCmrPath().isBlank()) {
+            throw new EntityNotFoundException("Aucun document CMR attaché à cette mission");
+        }
+        return fileStorageService.load(mission.getCmrPath());
     }
 
     @Override
@@ -654,6 +693,13 @@ public class MissionServiceImpl implements MissionService {
                 fileStorageService.delete(mission.getLetterMissionPath(), "");
             } catch (Exception e) {
                 log.warn("Impossible de supprimer la lettre de mission: {}", e.getMessage());
+            }
+        }
+        if (mission.getCmrPath() != null) {
+            try {
+                fileStorageService.delete(mission.getCmrPath(), "");
+            } catch (Exception e) {
+                log.warn("Impossible de supprimer le document CMR: {}", e.getMessage());
             }
         }
         

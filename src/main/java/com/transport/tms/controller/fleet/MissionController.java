@@ -45,14 +45,14 @@ public class MissionController implements MissionApi {
     }
 
     @Override
-    public ResponseEntity<MissionResponse> create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
+    public ResponseEntity<MissionResponse> create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter, org.springframework.web.multipart.MultipartFile cmr) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(missionService.create(request, letter));
+                .body(missionService.create(request, letter, cmr));
     }
 
     @Override
-    public ResponseEntity<MissionResponse> update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter) {
-        return ResponseEntity.ok(missionService.update(id, request, letter));
+    public ResponseEntity<MissionResponse> update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter, org.springframework.web.multipart.MultipartFile cmr) {
+        return ResponseEntity.ok(missionService.update(id, request, letter, cmr));
     }
 
     @Override
@@ -80,6 +80,26 @@ public class MissionController implements MissionApi {
     @Override
     public ResponseEntity<MissionResponse> uploadLetter(Long id, org.springframework.web.multipart.MultipartFile file) {
         return ResponseEntity.ok(missionService.uploadLetter(id, file));
+    }
+
+    @Override
+    public ResponseEntity<org.springframework.core.io.Resource> downloadCmr(Long id) {
+        org.springframework.core.io.Resource file = missionService.getCmr(id);
+        String contentType = "application/octet-stream";
+        try {
+            contentType = java.nio.file.Files.probeContentType(java.nio.file.Paths.get(file.getURI()));
+        } catch (java.io.IOException ex) {
+            // Ignorer
+        }
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType != null ? contentType : "application/octet-stream"))
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFilename() + "\"")
+                .body(file);
+    }
+
+    @Override
+    public ResponseEntity<MissionResponse> uploadCmr(Long id, org.springframework.web.multipart.MultipartFile file) {
+        return ResponseEntity.ok(missionService.uploadCmr(id, file));
     }
 
 /*    @Override

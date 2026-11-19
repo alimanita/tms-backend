@@ -65,6 +65,19 @@ public class MissionMapper {
                     .toUriString();
         }
 
+        String cmrUrl = null;
+        if (mission.getCmrPath() != null && !mission.getCmrPath().isBlank()) {
+            try {
+                cmrUrl = org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path("/api/v1/fleet/missions/")
+                        .path(mission.getId().toString())
+                        .path("/cmr")
+                        .toUriString();
+            } catch (Exception e) {
+                cmrUrl = "/api/v1/fleet/missions/" + mission.getId() + "/cmr";
+            }
+        }
+
         return new MissionResponse(
                 mission.getId(),
                 mission.getReference(),
@@ -107,7 +120,8 @@ public class MissionMapper {
                 mission.getApprovedAt(),
                 mission.getCreatedAt(),
                 mission.getUpdatedAt(),
-                letterUrl
+                letterUrl,
+                cmrUrl
         );
     }
 

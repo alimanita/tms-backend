@@ -50,5 +50,6 @@ public record MissionResponse(
     LocalDateTime approvedAt,
     LocalDateTime createdAt,
     LocalDateTime updatedAt,
-    String letterMissionUrl
+    String letterMissionUrl,
+    String cmrUrl
 ) {}

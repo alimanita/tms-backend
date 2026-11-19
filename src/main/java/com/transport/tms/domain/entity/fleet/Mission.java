@@ -135,6 +135,9 @@ public class Mission {
     @Column(name = "letter_mission_path", columnDefinition = "TEXT")
     private String letterMissionPath;
 
+    @Column(name = "cmr_path", columnDefinition = "TEXT")
+    private String cmrPath;
+
     @Column(name = "approved_by")
     private Long approvedBy;
 

@@ -11,10 +11,14 @@ import java.util.List;
 
 public interface MissionService {
     MissionResponse create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter);
+    MissionResponse create(MissionRequest request, org.springframework.web.multipart.MultipartFile letter, org.springframework.web.multipart.MultipartFile cmr);
     MissionResponse update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter);
+    MissionResponse update(Long id, MissionRequest request, org.springframework.web.multipart.MultipartFile letter, org.springframework.web.multipart.MultipartFile cmr);
     void delete(Long id);
     MissionResponse uploadLetter(Long id, org.springframework.web.multipart.MultipartFile file);
     org.springframework.core.io.Resource getLetterMission(Long id);
+    MissionResponse uploadCmr(Long id, org.springframework.web.multipart.MultipartFile file);
+    org.springframework.core.io.Resource getCmr(Long id);
     MissionResponse findById(Long id);
     Page<MissionResponse> findAll(
             Pageable pageable,

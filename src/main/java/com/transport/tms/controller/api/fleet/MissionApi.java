@@ -34,12 +34,14 @@ public interface MissionApi {
     @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<MissionResponse> create(
         @RequestPart("mission") @Valid MissionRequest request,
-        @RequestPart(value = "letter", required = false) org.springframework.web.multipart.MultipartFile letter);
+        @RequestPart(value = "letter", required = false) org.springframework.web.multipart.MultipartFile letter,
+        @RequestPart(value = "cmr", required = false) org.springframework.web.multipart.MultipartFile cmr);
 
     @PutMapping(value = "/{id}", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<MissionResponse> update(@PathVariable Long id,
                                            @RequestPart("mission") @Valid MissionRequest request,
-                                           @RequestPart(value = "letter", required = false) org.springframework.web.multipart.MultipartFile letter);
+                                           @RequestPart(value = "letter", required = false) org.springframework.web.multipart.MultipartFile letter,
+                                           @RequestPart(value = "cmr", required = false) org.springframework.web.multipart.MultipartFile cmr);
 
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable Long id);
@@ -49,6 +51,12 @@ public interface MissionApi {
 
     @PostMapping(value = "/{id}/letter", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<MissionResponse> uploadLetter(@PathVariable Long id, @RequestPart("file") org.springframework.web.multipart.MultipartFile file);
+
+    @GetMapping("/{id}/cmr")
+    ResponseEntity<org.springframework.core.io.Resource> downloadCmr(@PathVariable Long id);
+
+    @PostMapping(value = "/{id}/cmr", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<MissionResponse> uploadCmr(@PathVariable Long id, @RequestPart("file") org.springframework.web.multipart.MultipartFile file);
 
 /*    @PatchMapping("/{id}/soumettre")
     ResponseEntity<MissionResponse> soumettre(@PathVariable Long id);
