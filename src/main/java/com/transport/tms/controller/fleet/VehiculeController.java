@@ -50,8 +50,15 @@ public class VehiculeController implements VehiculeApi {
     public ResponseEntity<List<VehiculeResponse>> findDisponibles() {
         return ResponseEntity.ok(vehiculeService.findDisponibles());
     }
+
     @Override
     public ResponseEntity<VehiculeResponse> toggleActif(Long id) {
         return ResponseEntity.ok(vehiculeService.toggleActif(id));
+    }
+
+    @Override
+    public ResponseEntity<VehiculeResponse> getMonVehicule() {
+        VehiculeResponse v = vehiculeService.findMonVehicule();
+        return v != null ? ResponseEntity.ok(v) : ResponseEntity.noContent().build();
     }
 }

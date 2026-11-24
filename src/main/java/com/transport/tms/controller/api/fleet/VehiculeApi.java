@@ -28,8 +28,14 @@ public interface VehiculeApi {
     @PatchMapping("/{id}/statut")
     ResponseEntity<VehiculeResponse> updateStatut(@PathVariable Long id,
                                                   @RequestParam String statut);
+
     @GetMapping("/disponibles")
     ResponseEntity<List<VehiculeResponse>> findDisponibles();
+
     @PatchMapping("/{id}/toggle-actif")
     ResponseEntity<VehiculeResponse> toggleActif(@PathVariable Long id);
+
+    /** Retourne le vehicule affecte au chauffeur connecte */
+    @GetMapping("/mon-vehicule")
+    ResponseEntity<VehiculeResponse> getMonVehicule();
 }

@@ -17,4 +17,6 @@ public interface VehiculeService {
     VehiculeResponse updateStatut(Long id, String statut);
     void delete(Long id);
     VehiculeResponse toggleActif(Long id);
+    /** Retourne le vehicule affecte au chauffeur connecte, ou null */
+    VehiculeResponse findMonVehicule();
 }

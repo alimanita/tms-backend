@@ -1,19 +1,25 @@
 package com.transport.tms.service.fleet.fleetImpl;
 
+import com.transport.tms.domain.entity.fleet.Chauffeur;
 import com.transport.tms.domain.entity.fleet.Vehicule;
 import com.transport.tms.domain.enums.StatutVehicule;
 import com.transport.tms.dto.fleet.request.VehiculeRequest;
 import com.transport.tms.dto.fleet.response.VehiculeResponse;
 import com.transport.tms.exception.InvalidOperationException;
 import com.transport.tms.mapper.fleet.VehiculeMapper;
+import com.transport.tms.repository.fleet.ChauffeurRepository;
 import com.transport.tms.repository.fleet.VehiculeRepository;
+import com.transport.tms.repository.UtilisateurRepository;
 import com.transport.tms.service.fleet.VehiculeService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,18 +34,19 @@ public class VehiculeServiceImpl implements VehiculeService {
 
     private final VehiculeRepository vehiculeRepository;
     private final VehiculeMapper vehiculeMapper;
+    private final ChauffeurRepository chauffeurRepository;
+    private final UtilisateurRepository utilisateurRepository;
 
     private static final int MAX_TENTATIVES_REFERENCE = 5;
 
     @Override
     public VehiculeResponse create(VehiculeRequest request) {
-        // Générer référence automatiquement si absente, sinon vérifier l'unicité de celle fournie
         String reference;
         if (request.reference() != null && !request.reference().isBlank()) {
             reference = request.reference();
             if (vehiculeRepository.existsByReference(reference)) {
                 throw new InvalidOperationException(
-                        "La référence '" + reference + "' existe déjà. Merci d'en choisir une autre.");
+                        "La reference '" + reference + "' existe deja. Merci d'en choisir une autre.");
             }
         } else {
             reference = genererReferenceUnique();
@@ -47,22 +54,21 @@ public class VehiculeServiceImpl implements VehiculeService {
 
         if (vehiculeRepository.existsByImmatriculation(request.immatriculation())) {
             throw new InvalidOperationException(
-                    "Un véhicule avec l'immatriculation '" + request.immatriculation() + "' existe déjà");
+                    "Un vehicule avec l'immatriculation '" + request.immatriculation() + "' existe deja");
         }
 
         Vehicule vehicule = vehiculeMapper.toEntity(request);
-        vehicule.setReference(reference); // forcer la référence générée/validée
+        vehicule.setReference(reference);
+
+        // Affectation chauffeur lors de la creation
+        if (request.chauffeurAffecteId() != null) {
+            chauffeurRepository.findById(request.chauffeurAffecteId())
+                    .ifPresent(vehicule::setChauffeurAffecte);
+        }
 
         return vehiculeMapper.toResponse(vehiculeRepository.save(vehicule));
     }
 
-    /**
-     * Génère une référence unique du type VH-{annee}-{numero}, en se basant sur
-     * la dernière référence réellement enregistrée pour l'année en cours
-     * (et non sur un simple count() qui peut créer des doublons si des
-     * véhicules ont été supprimés ou en cas d'accès concurrent).
-     * Une boucle de vérification/retry protège contre les collisions résiduelles.
-     */
     private String genererReferenceUnique() {
         String reference;
         int tentative = 0;
@@ -71,7 +77,7 @@ public class VehiculeServiceImpl implements VehiculeService {
             tentative++;
             if (tentative > MAX_TENTATIVES_REFERENCE) {
                 throw new IllegalStateException(
-                        "Impossible de générer une référence véhicule unique après "
+                        "Impossible de generer une reference vehicule unique apres "
                                 + MAX_TENTATIVES_REFERENCE + " tentatives");
             }
         } while (vehiculeRepository.existsByReference(reference));
@@ -92,7 +98,7 @@ public class VehiculeServiceImpl implements VehiculeService {
             int dernierNumero = Integer.parseInt(parts[parts.length - 1]);
             return dernierNumero + 1;
         } catch (Exception e) {
-            log.warn("Impossible de parser la référence '{}', fallback sur count()", derniereReference);
+            log.warn("Impossible de parser la reference '{}', fallback sur count()", derniereReference);
             return (int) vehiculeRepository.count() + 1;
         }
     }
@@ -102,9 +108,18 @@ public class VehiculeServiceImpl implements VehiculeService {
         Vehicule vehicule = findEntityById(id);
         if (vehicule.getStatut() == StatutVehicule.HS) {
             throw new InvalidOperationException(
-                    "Un véhicule hors service ne peut pas être modifié");
+                    "Un vehicule hors service ne peut pas etre modifie");
         }
         vehiculeMapper.updateEntity(vehicule, request);
+
+        // Gestion de l'affectation chauffeur
+        if (request.chauffeurAffecteId() != null) {
+            chauffeurRepository.findById(request.chauffeurAffecteId())
+                    .ifPresent(vehicule::setChauffeurAffecte);
+        } else {
+            vehicule.setChauffeurAffecte(null);
+        }
+
         return vehiculeMapper.toResponse(vehiculeRepository.save(vehicule));
     }
 
@@ -114,33 +129,10 @@ public class VehiculeServiceImpl implements VehiculeService {
         return vehiculeMapper.toResponse(findEntityById(id));
     }
 
-    // We'll inject ChauffeurRepository and UtilisateurRepository using field injection to avoid messing with constructor
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.transport.tms.repository.fleet.ChauffeurRepository chauffeurRepository;
-
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.transport.tms.repository.UtilisateurRepository utilisateurRepository;
-
-    private com.transport.tms.domain.entity.fleet.Chauffeur resolveChauffeurFromConnectedUser() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return null;
-        boolean isChauffeur = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CHAUFFEUR"));
-        if (!isChauffeur) return null;
-        String username = auth.getName();
-        return utilisateurRepository.findByEmailOrUsername(username, username)
-                .flatMap(u -> chauffeurRepository.findByUtilisateurId(u.getId()))
-                .orElse(null);
-    }
-
     @Override
     @Transactional(readOnly = true)
     public Page<VehiculeResponse> findAll(Pageable pageable) {
-        com.transport.tms.domain.entity.fleet.Chauffeur chauffeur = resolveChauffeurFromConnectedUser();
-        if (chauffeur != null) {
-            return vehiculeRepository.findByChauffeurAffecteId(chauffeur.getId(), pageable)
-                    .map(vehiculeMapper::toResponse);
-        }
+        // Tous les roles peuvent voir tous les vehicules (utile pour les formulaires)
         return vehiculeRepository.findAll(pageable)
                 .map(vehiculeMapper::toResponse);
     }
@@ -164,7 +156,7 @@ public class VehiculeServiceImpl implements VehiculeService {
         } catch (IllegalArgumentException e) {
             throw new InvalidOperationException(
                     "Statut invalide : " + statut
-                            + ". Valeurs acceptées : DISPONIBLE, EN_MISSION, EN_MAINTENANCE, HS");
+                            + ". Valeurs acceptees : DISPONIBLE, EN_MISSION, EN_MAINTENANCE, HS");
         }
         vehicule.setStatut(nouveauStatut);
         return vehiculeMapper.toResponse(vehiculeRepository.save(vehicule));
@@ -175,26 +167,59 @@ public class VehiculeServiceImpl implements VehiculeService {
         Vehicule vehicule = findEntityById(id);
         if (vehicule.getStatut() == StatutVehicule.EN_MISSION) {
             throw new InvalidOperationException(
-                    "Impossible de désactiver un véhicule en mission");
+                    "Impossible de desactiver un vehicule en mission");
         }
-        vehicule.setActif(false);   // ✅ setActif au lieu de setIsActive
+        vehicule.setActif(false);
         vehiculeRepository.save(vehicule);
+    }
+
+    @Override
+    public VehiculeResponse toggleActif(Long id) {
+        log.info("Toggle actif du vehicule ID: {}", id);
+        Vehicule vehicule = vehiculeRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Vehicule introuvable, id=" + id));
+
+        vehicule.setActif(!Boolean.TRUE.equals(vehicule.getActif()));
+        Vehicule saved = vehiculeRepository.save(vehicule);
+        return vehiculeMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VehiculeResponse findMonVehicule() {
+        Chauffeur chauffeur = resolveChauffeurFromConnectedUser();
+        if (chauffeur == null) return null;
+
+        Page<Vehicule> page = vehiculeRepository.findByChauffeurAffecteId(
+                chauffeur.getId(), PageRequest.of(0, 1));
+        return page.isEmpty() ? null : vehiculeMapper.toResponse(page.getContent().get(0));
+    }
+
+    private Chauffeur resolveChauffeurFromConnectedUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+        boolean isChauffeur = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CHAUFFEUR"));
+        if (!isChauffeur) return null;
+        String username = auth.getName();
+        return utilisateurRepository.findByEmailOrUsername(username, username)
+                .flatMap(u -> chauffeurRepository.findByUtilisateurId(u.getId()))
+                .orElse(null);
     }
 
     private Vehicule findEntityById(Long id) {
         return vehiculeRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(
-                        "Véhicule introuvable avec l'ID = " + id));
+                        "Vehicule introuvable avec l'ID = " + id));
     }
 
-    @Override
-    public VehiculeResponse toggleActif(Long id) {
-        log.info("Toggle actif du véhicule ID: {}", id);
-        Vehicule vehicule = vehiculeRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Véhicule introuvable, id=" + id));
+    @Transactional(readOnly = true)
+    public long countByChauffeurAffecte(Long chauffeurId) {
+        return vehiculeRepository.countByChauffeurAffecteId(chauffeurId);
+    }
 
-        vehicule.setActif(!Boolean.TRUE.equals(vehicule.getActif()));
-        Vehicule saved = vehiculeRepository.save(vehicule);
-        return vehiculeMapper.toResponse(saved);
+    @Transactional(readOnly = true)
+    public long countByChauffeurAffecteAndStatut(Long chauffeurId, StatutVehicule statut) {
+        return vehiculeRepository.countByChauffeurAffecteIdAndStatut(chauffeurId, statut);
     }
 }

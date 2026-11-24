@@ -66,7 +66,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/fleet/missions/**")
                         .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR")
                         .requestMatchers("/api/v1/fleet/vehicules/**")
-                        .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR")
+                        .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR", "COMPTABLE")
                         .requestMatchers("/api/v1/fleet/pleins-carburant/**")
                         .hasAnyRole("SUPER_ADMIN", "MANAGER", "CHAUFFEUR", "COMPTABLE")
                         .requestMatchers("/api/v1/fleet/peages/**")
